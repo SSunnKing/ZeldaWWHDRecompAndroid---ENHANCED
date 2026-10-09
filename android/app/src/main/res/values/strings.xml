@@ -220,6 +220,8 @@
     <string name="opt_ao">Ambient occlusion</string>
     <string name="opt_bloom">Bloom strength</string>
     <string name="opt_bloom_hint">Glow around bright areas. 100% matches the original game</string>
+    <string name="opt_area_blur">Console-accurate blur</string>
+    <string name="opt_area_blur_hint">Above 1x resolution: removes the fine grid in shadows and around objects on the ground. Costs GPU time</string>
     <string name="opt_ao_hires">Full-size occlusion depth</string>
     <string name="opt_aniso">16× anisotropic filtering</string>
     <string name="opt_perf">Performance overlay</string>

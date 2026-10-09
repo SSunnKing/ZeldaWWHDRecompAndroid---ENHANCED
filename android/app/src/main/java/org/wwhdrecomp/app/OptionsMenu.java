@@ -490,6 +490,7 @@ final class OptionsMenu extends Dialog {
                 Native.setOption("bloom_strength", pcts[i]);
             });
         }
+        toggle(R.string.opt_area_blur, R.string.opt_area_blur_hint, a.prefs.getBoolean("area_blur", false), on -> a.setBool("area_blur", on));
         toggle(R.string.opt_ao_hires, 0, Native.getOption("ao_hires") != 0, on -> a.setBool("ao_hires", on));
         toggle(R.string.opt_aniso, 0, Native.getOption("aniso") != 0, on -> a.setBool("aniso", on));
         submenu(R.string.opt_perf, R.string.opt_perf_hint, a.getString(a.prefs.getBoolean("perf_hud", false) ? R.string.opt_on : R.string.opt_off),

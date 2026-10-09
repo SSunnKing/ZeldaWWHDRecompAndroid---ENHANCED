@@ -581,6 +581,11 @@ static bool shader_reg_relevant(uint32_t reg, uint32_t oldv, uint32_t newv) {
 }
 static bool g_reg_filter_set = (g_shader_reg_filter = &shader_reg_relevant, true);
 
+// Console-accurate blur on upscaled targets (area_sample.h; graphics setting, off by default:
+// its extra texture reads cost a lot of GPU time at 3x). Part of the blur shaders' keys, so a
+// switch takes effect on the next frame.
+static std::atomic<bool> g_area_blur{getenv("WWHD_AREA_BLUR") && atoi(getenv("WWHD_AREA_BLUR")) != 0};
+
 // A pixel shader translated for the draw's vertex shader: the semantic ids that vertex shader
 // exports (its output parameters through SPI_VS_OUT_ID) and the PS inputs none of them feeds. Those
 // inputs are constants in the translation, the GPU's default value for them (SPI_PS_INPUT_CNTL
@@ -667,12 +672,14 @@ static Shader* get_shader_uncached(const uint32_t* regs, bool vertex, LatteFetch
     static Memo memo[64];
     uint32_t words[400];
     uint32_t n = stage_state_words(regs, vertex ? REGADDR::SQ_TEX_RESOURCE_WORD0_N_VS : REGADDR::SQ_TEX_RESOURCE_WORD0_N_PS, words);
-    uint64_t fk = vertex ? fsKey : link.key;
+    const uint32_t area = !vertex && g_area_blur.load(std::memory_order_relaxed)
+                              ? vk_area_sample::units_for_pixel_shader(mem::ptr(addr), size) : 0;
+    uint64_t fk = vertex ? fsKey : link.key ^ ((uint64_t)area << 56);
     Memo& m = memo[(base ^ (base >> 21) ^ fk) & 63];
     if (m.s && m.base == base && m.fsKey == fk && m.n == n && memcmp(m.words, words, n * 4) == 0) return m.s;
     key = hash_bytes(words, n * 4, key);
     if (vertex) key ^= fsKey * 31;
-    else key ^= link.key * 37;
+    else key ^= link.key * 37 ^ (uint64_t)area * 0x9E3779B97F4A7C15ull;
     auto remember = [&](Shader* sh) {
         m.base = base;
         m.fsKey = fk;
@@ -695,7 +702,7 @@ static Shader* get_shader_uncached(const uint32_t* regs, bool vertex, LatteFetch
         opt.linkPSInputsToVS = true;
         opt.vsOutputSemantics = link.exports;
     }
-    if (!vertex) opt.areaSampledTextures = s->areaUnits = vk_area_sample::units_for_pixel_shader(mem::ptr(addr), size);
+    if (!vertex) opt.areaSampledTextures = s->areaUnits = area;
     LatteDecompilerOutput_t out{};
     if (vertex)
         LatteDecompiler_DecompileVertexShader(base, (uint32*)regs, mem::ptr(addr), size, fs, opt, &out);
@@ -935,6 +942,8 @@ static std::atomic<int> g_bloom_pct{[] {
     const char* e = getenv("WWHD_BLOOM_STRENGTH");
     return e ? std::clamp((int)(atof(e) * 100.0f), 0, 200) : 100;
 }()};
+bool area_blur() { return g_area_blur.load(std::memory_order_relaxed); }
+void set_area_blur(bool on) { g_area_blur = on; LOG("[gfx] console-accurate blur %s", on ? "on" : "off"); }
 int bloom_strength() { return g_bloom_pct.load(std::memory_order_relaxed); }
 void set_bloom_strength(int pct) { g_bloom_pct = std::clamp(pct, 0, 200); LOG("[gfx] bloom strength %d%%", g_bloom_pct.load()); }
 void set_ao_mode(int m) { m = std::clamp(m, 0, 3); g_ao_mode = m; LOG("[gfx] ambient occlusion mode %d", m); }

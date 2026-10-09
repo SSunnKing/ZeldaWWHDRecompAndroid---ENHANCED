@@ -492,6 +492,7 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
     private void applyOptions() {
         Native.setOption("ao_mode", prefs.getInt("ao_mode", Native.getOption("ao_mode")));
         Native.setOption("bloom_strength", prefs.getInt("bloom_strength", 100));
+        Native.setOption("area_blur", prefs.getBoolean("area_blur", false) ? 1 : 0);
         Native.setOption("ao_hires", prefs.getBoolean("ao_hires", Native.getOption("ao_hires") != 0) ? 1 : 0);
         Native.setOption("aniso", prefs.getBoolean("aniso", Native.getOption("aniso") != 0) ? 1 : 0);
         Native.setOption("pro_controller", prefs.getBoolean("pro_controller", Native.getOption("pro_controller") != 0) ? 1 : 0);
