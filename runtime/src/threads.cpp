@@ -62,11 +62,23 @@ constexpr uint32_t kAffinity = 0x304;
 enum State : uint8_t { NONE = 0, READY = 1, RUNNING = 2, WAITING = 4, MORIBUND = 8 };
 }  // namespace osthread
 
+// The condition guest threads park on (park_wait is the only place that waits on one). A wake-up
+// with nobody waiting is skipped: on Android every notify is a futex syscall even then, and the
+// game sends thousands of messages, events and mutex releases a second (OSSendMessage and its
+// notify were ~10% of the game thread). Waiters count themselves under the object's mutex, so a
+// notifier that saw 0 changed the state before the waiter checked its predicate.
+struct GuestCv {
+    std::condition_variable cv;
+    std::atomic<int> waiters{0};
+    void notify_all() { if (waiters.load()) cv.notify_all(); }
+    void notify_one() { if (waiters.load()) cv.notify_one(); }
+};
+
 struct HostThread {
     uint32_t guest = 0;  // OSThread*
     Cpu cpu{};
     std::mutex m;
-    std::condition_variable cv;
+    GuestCv cv;
     int suspend = 1;
     bool started = false;
     bool exited = false;
@@ -402,7 +414,7 @@ static void park_gate(HostThread* t) {
 // wait on a host condition with the core given up; `lk` is held on entry and exit. The predicate is
 // re-checked after every wakeup (also after a save state was loaded). False on timeout.
 template <class Pred>
-static bool park_wait(std::unique_lock<std::mutex>& lk, std::condition_variable& cv, Pred pred, uint8_t kind, uint32_t obj,
+static bool park_wait(std::unique_lock<std::mutex>& lk, GuestCv& cv, Pred pred, uint8_t kind, uint32_t obj,
                       const std::chrono::steady_clock::time_point* deadline = nullptr) {
     HostThread* t = t_self;
     while (!pred()) {
@@ -415,8 +427,10 @@ static bool park_wait(std::unique_lock<std::mutex>& lk, std::condition_variable&
         lk.unlock();
         threads::block_begin();
         lk.lock();
-        if (deadline) cv.wait_until(lk, *deadline, pred);
-        else cv.wait(lk, pred);
+        cv.waiters++;
+        if (deadline) cv.cv.wait_until(lk, *deadline, pred);
+        else cv.cv.wait(lk, pred);
+        cv.waiters--;
         lk.unlock();
         if (t) park_gate(t);
         threads::block_end();
@@ -801,7 +815,7 @@ struct ObjTable {
 // OSMutex: recursive, owned by a thread
 struct HMutex {
     std::mutex m;
-    std::condition_variable cv;
+    GuestCv cv;
     const void* owner = nullptr;
     int count = 0;
 };
@@ -871,7 +885,7 @@ HLE(coreinit, __ghs_flock_destroy) {}
 // is reset before they run (the game pulses events: signal, then reset at once).
 struct HEvent {
     std::mutex m;
-    std::condition_variable cv;
+    GuestCv cv;
     bool signaled = false;
     bool auto_reset = false;
     std::deque<HostThread*> waiters;
@@ -945,7 +959,7 @@ HLE(coreinit, OSWaitEventWithTimeout) {
 // OSMessageQueue: messages are 16 bytes
 struct HQueue {
     std::mutex m;
-    std::condition_variable cv;
+    GuestCv cv;
     std::deque<std::array<uint32_t, 4>> msgs;
     uint32_t capacity = 0;
     // self-post loops: a thread that keeps re-sending messages to its own queue (WWHD's Miiverse
@@ -1021,7 +1035,7 @@ HLE(coreinit, OSReceiveMessage) {
 // token of every thread sleeping at that moment
 struct HSleep {
     std::mutex m;
-    std::condition_variable cv;
+    GuestCv cv;
     std::vector<HostThread*> waiters;
     uint64_t gen = 0;  // for sleepers that are not guest threads
 };
@@ -1054,7 +1068,7 @@ void os_wakeup_thread_queue(uint32_t queue) {
 // OSRendezvous
 struct HRendezvous {
     std::mutex m;
-    std::condition_variable cv;
+    GuestCv cv;
     uint32_t arrived = 0;
 };
 static ObjTable<HRendezvous> g_rdv;

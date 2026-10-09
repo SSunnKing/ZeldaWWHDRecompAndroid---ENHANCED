@@ -1036,6 +1036,10 @@ void upload_surface(Surface* s) {
     const bool is3D = s->img.type == VK_IMAGE_TYPE_3D;
     // BC without device support: decode all levels with one dispatch each, then copy them after one barrier
     const bool gpuBC = is_bc_decode(f.convert) && bc_decoder_checked();
+    // Qualcomm's driver (Adreno 650, driver 502) hangs the GPU (VK_ERROR_DEVICE_LOST) on some
+    // decodes recorded after render passes in the same command buffer, barrier or not; submitting
+    // the work before them avoids it
+    if (gpuBC && R.driverID == VK_DRIVER_ID_QUALCOMM_PROPRIETARY) flush();
     std::vector<std::pair<Upload, VkBufferImageCopy>> decoded;
     for (uint32_t level = 0; level < s->img.mips; level++) {
         uint32_t base;

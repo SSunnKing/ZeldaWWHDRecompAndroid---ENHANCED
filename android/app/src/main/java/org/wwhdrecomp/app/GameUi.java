@@ -65,6 +65,24 @@ final class GameUi {
 
     static int px(Context c, float v) { return Math.round(v * c.getResources().getDisplayMetrics().density); }
 
+    // The menus are laid out for a landscape screen of about 960 x 440 dp. A context for them whose
+    // density is lowered so that much fits the screen (many phones have 800 x 360 dp or less, more so
+    // with a larger display size setting), times the user's menu size (MainActivity.MENU_SIZES).
+    // dp and sp sizes in views made with it scale with it; the window still belongs to `a`.
+    static Context fitted(android.app.Activity a) {
+        if (a == null) return null;
+        android.util.DisplayMetrics m = a.getResources().getDisplayMetrics();
+        float wDp = Math.max(m.widthPixels, m.heightPixels) / m.density, hDp = Math.min(m.widthPixels, m.heightPixels) / m.density;
+        float fit = Math.min(1f, Math.min(wDp / 960f, hDp / 440f));
+        float user = a.getSharedPreferences(MainActivity.PREFS, Context.MODE_PRIVATE).getFloat("menu_size", 1f);
+        float scale = Math.max(0.5f, Math.min(1.5f, fit * user));
+        android.view.ContextThemeWrapper w = new android.view.ContextThemeWrapper(a, android.R.style.Theme_Translucent_NoTitleBar_Fullscreen);
+        android.content.res.Configuration cfg = new android.content.res.Configuration(a.getResources().getConfiguration());
+        cfg.densityDpi = Math.max(80, Math.round(m.densityDpi * scale));
+        w.applyOverrideConfiguration(cfg);
+        return w;
+    }
+
     // the game's light-blue bar buttons
     static TextView barButton(Context c, String text, View.OnClickListener click) { return barButton(c, text, click, false); }
 

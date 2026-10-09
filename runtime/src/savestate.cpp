@@ -314,6 +314,25 @@ std::string stage_name() {
 }
 
 // ---------------------------------------------------------------- memory
+// bytes capture_memory() can write at most: the chunks with resident pages. Reserved up front so the
+// payload never reallocates (doubling a 500 MB vector got the app killed for memory on 6 GB phones)
+size_t memory_bound() {
+    std::vector<char> vec(kChunk / getpagesize() + 1);
+    size_t n = 64;
+    for (auto& g : regions()) {
+        n += 12;
+        for (uint32_t off = 0; off < g.size; off += kChunk) {
+            if (page_residency(mem::ptr(g.base + off), kChunk, vec.data()) == 0) {
+                bool touched = false;
+                for (size_t i = 0; i < kChunk / (size_t)getpagesize(); i++) touched |= vec[i] != 0;
+                if (!touched) continue;
+            }
+            n += 4 + kChunk;
+        }
+    }
+    return n;
+}
+
 void capture_memory(Writer& w) {
     auto rs = regions();
     w.u32((uint32_t)rs.size());
@@ -392,7 +411,7 @@ bool write_slot(int slot, const Header& h0, const std::vector<uint8_t>& payload)
                     n = raw;
                 }
                 memcpy(o.data(), hdr, 8);
-                o.resize(8 + n);
+                std::vector<uint8_t>(o.begin(), o.begin() + 8 + n).swap(o);  // gives back the unused capacity
             }
         });
     for (auto& t : pool) t.join();
@@ -551,7 +570,7 @@ bool do_save(int slot) {
         return true;
     }
     auto payload = std::make_shared<Writer>();
-    payload->b.reserve(512u << 20);
+    payload->b.reserve(64u << 20);
     put_section(*payload, kSecThreads, threads_w);
     Writer w;
     mem_ss_save(w);
@@ -572,6 +591,7 @@ bool do_save(int slot) {
     save_dispatch(w);
     put_section(*payload, kSecDispatch, w);
     // memory last, written straight into the payload
+    payload->b.reserve(payload->b.size() + 12 + memory_bound());
     payload->u32(kSecMemory);
     size_t len_at = payload->b.size();
     payload->u64(0);

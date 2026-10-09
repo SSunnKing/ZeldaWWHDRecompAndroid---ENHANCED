@@ -91,8 +91,10 @@ final class InputMapper {
     /** the controller buttons an analog event holds down right now: triggers as L2 / R2, a hat as the D-pad */
     static java.util.List<Integer> analogButtons(MotionEvent e) {
         java.util.List<Integer> l = new java.util.ArrayList<>();
-        if (Math.max(e.getAxisValue(MotionEvent.AXIS_LTRIGGER), e.getAxisValue(MotionEvent.AXIS_BRAKE)) > 0.5f) l.add(KeyEvent.KEYCODE_BUTTON_L2);
-        if (Math.max(e.getAxisValue(MotionEvent.AXIS_RTRIGGER), e.getAxisValue(MotionEvent.AXIS_GAS)) > 0.5f) l.add(KeyEvent.KEYCODE_BUTTON_R2);
+        InputDevice d = e.getDevice();
+        Layout lay = d != null ? layout(d, e) : null;
+        if (lay != null && lay.lt != 0 && trigger(e, d, lay.lt) > 0.5f) l.add(KeyEvent.KEYCODE_BUTTON_L2);
+        if (lay != null && lay.rt != 0 && trigger(e, d, lay.rt) > 0.5f) l.add(KeyEvent.KEYCODE_BUTTON_R2);
         float hx = e.getAxisValue(MotionEvent.AXIS_HAT_X), hy = e.getAxisValue(MotionEvent.AXIS_HAT_Y);
         if (hx < -0.5f) l.add(KeyEvent.KEYCODE_DPAD_LEFT);
         if (hx > 0.5f) l.add(KeyEvent.KEYCODE_DPAD_RIGHT);
@@ -102,24 +104,25 @@ final class InputMapper {
     }
 
     /** a controller button's name, by position for the face buttons (their letters differ by brand) */
-    static String buttonName(int code) {
+    static String buttonName(android.content.Context c, int code) {
         switch (code) {
-            case KeyEvent.KEYCODE_BUTTON_A: return "Bottom face button (A / Cross)";
-            case KeyEvent.KEYCODE_BUTTON_B: return "Right face button (B / Circle)";
-            case KeyEvent.KEYCODE_BUTTON_X: return "Left face button (X / Square)";
-            case KeyEvent.KEYCODE_BUTTON_Y: return "Top face button (Y / Triangle)";
+            case KeyEvent.KEYCODE_BUTTON_A: return c.getString(R.string.pad_face_bottom);
+            case KeyEvent.KEYCODE_BUTTON_B: return c.getString(R.string.pad_face_right);
+            case KeyEvent.KEYCODE_BUTTON_X: return c.getString(R.string.pad_face_left);
+            case KeyEvent.KEYCODE_BUTTON_Y: return c.getString(R.string.pad_face_top);
             case KeyEvent.KEYCODE_BUTTON_L1: return "L1 / LB";
             case KeyEvent.KEYCODE_BUTTON_R1: return "R1 / RB";
             case KeyEvent.KEYCODE_BUTTON_L2: return "L2 / LT";
             case KeyEvent.KEYCODE_BUTTON_R2: return "R2 / RT";
             case KeyEvent.KEYCODE_BUTTON_SELECT: case KeyEvent.KEYCODE_BACK: return "Select / View / Share";
             case KeyEvent.KEYCODE_BUTTON_START: return "Start / Menu / Options";
-            case KeyEvent.KEYCODE_BUTTON_THUMBL: return "Left stick click";
-            case KeyEvent.KEYCODE_BUTTON_THUMBR: return "Right stick click";
-            case KeyEvent.KEYCODE_DPAD_UP: return "D-pad up";
-            case KeyEvent.KEYCODE_DPAD_DOWN: return "D-pad down";
-            case KeyEvent.KEYCODE_DPAD_LEFT: return "D-pad left";
-            case KeyEvent.KEYCODE_DPAD_RIGHT: return "D-pad right";
+            case KeyEvent.KEYCODE_BUTTON_THUMBL: case KeyEvent.KEYCODE_BUTTON_THUMBR:
+            case KeyEvent.KEYCODE_DPAD_UP: case KeyEvent.KEYCODE_DPAD_DOWN: case KeyEvent.KEYCODE_DPAD_LEFT: case KeyEvent.KEYCODE_DPAD_RIGHT: {
+                // as the Wii U buttons' names (wiiu_buttons: 10 L3, 11 R3, 12..15 D-pad)
+                int i = code == KeyEvent.KEYCODE_BUTTON_THUMBL ? 10 : code == KeyEvent.KEYCODE_BUTTON_THUMBR ? 11
+                        : code == KeyEvent.KEYCODE_DPAD_UP ? 12 : code == KeyEvent.KEYCODE_DPAD_DOWN ? 13 : code == KeyEvent.KEYCODE_DPAD_LEFT ? 14 : 15;
+                return c.getResources().getStringArray(R.array.wiiu_buttons)[i];
+            }
             default: return KeyEvent.keyCodeToString(code).replace("KEYCODE_", "").replace('_', ' ');
         }
     }
@@ -198,23 +201,77 @@ final class InputMapper {
         return Math.max(-1f, Math.min(1f, (v - Math.signum(v) * flat) / (1f - flat)));
     }
 
+    // which axes are the right stick and the triggers, per controller (kept: devices don't change)
+    private static final class Layout { int rx, ry, lt, rt; }
+    private static final java.util.Map<String, Layout> layouts = new java.util.HashMap<>();
+
+    private static boolean has(InputDevice d, int axis, int source) { return d.getMotionRange(axis, source) != null; }
+    // an axis reading at the bottom of its range: a trigger at rest (a stick rests at its centre)
+    private static boolean atMin(MotionEvent e, InputDevice d, int axis) {
+        InputDevice.MotionRange r = d.getMotionRange(axis, e.getSource());
+        return r != null && e.getAxisValue(axis) <= r.getMin() + 0.15f * (r.getMax() - r.getMin());
+    }
+
+    /**
+     * The axes of the right stick and the triggers, decided from the controller's first event (sticks
+     * centred, triggers released): Z/RZ and RX/RY can be either (Xbox and DualSense with Android's key
+     * layouts: stick on Z/RZ, triggers on BRAKE/GAS or LTRIGGER/RTRIGGER; generic HID such as 8BitDo
+     * in DInput mode or a DualSense without a layout: stick on Z/RZ and triggers on RX/RY, or the
+     * other way round).
+     */
+    static Layout layout(InputDevice d, MotionEvent e) {
+        int source = e.getSource();
+        String key = d.getDescriptor() + "/" + source;
+        Layout l = layouts.get(key);
+        if (l != null) return l;
+        l = new Layout();
+        boolean z = has(d, MotionEvent.AXIS_Z, source) && has(d, MotionEvent.AXIS_RZ, source);
+        boolean r = has(d, MotionEvent.AXIS_RX, source) && has(d, MotionEvent.AXIS_RY, source);
+        boolean zRest = z && atMin(e, d, MotionEvent.AXIS_Z) && atMin(e, d, MotionEvent.AXIS_RZ);
+        boolean rRest = r && atMin(e, d, MotionEvent.AXIS_RX) && atMin(e, d, MotionEvent.AXIS_RY);
+        int trigA = 0, trigB = 0;
+        if (z && r && zRest && !rRest) {          // Z/RZ released triggers, RX/RY the stick
+            l.rx = MotionEvent.AXIS_RX; l.ry = MotionEvent.AXIS_RY; trigA = MotionEvent.AXIS_Z; trigB = MotionEvent.AXIS_RZ;
+        } else if (z) {                           // the stick on Z/RZ (RX/RY, if there, the triggers)
+            l.rx = MotionEvent.AXIS_Z; l.ry = MotionEvent.AXIS_RZ;
+            if (r) { trigA = MotionEvent.AXIS_RX; trigB = MotionEvent.AXIS_RY; }
+        } else {
+            l.rx = MotionEvent.AXIS_RX; l.ry = MotionEvent.AXIS_RY;
+        }
+        l.lt = has(d, MotionEvent.AXIS_LTRIGGER, source) ? MotionEvent.AXIS_LTRIGGER
+                : has(d, MotionEvent.AXIS_BRAKE, source) ? MotionEvent.AXIS_BRAKE : trigA;
+        l.rt = has(d, MotionEvent.AXIS_RTRIGGER, source) ? MotionEvent.AXIS_RTRIGGER
+                : has(d, MotionEvent.AXIS_GAS, source) ? MotionEvent.AXIS_GAS : trigB;
+        layouts.put(key, l);
+        android.util.Log.i("wwhd", "controller " + d.getName() + " (" + Integer.toHexString(d.getVendorId()) + ":" + Integer.toHexString(d.getProductId())
+                + "): right stick " + MotionEvent.axisToString(l.rx) + "/" + MotionEvent.axisToString(l.ry) + ", triggers "
+                + (l.lt != 0 ? MotionEvent.axisToString(l.lt) : "buttons") + "/" + (l.rt != 0 ? MotionEvent.axisToString(l.rt) : "buttons"));
+        return l;
+    }
+
+    // a trigger's travel 0..1, also for axes that rest at -1
+    private static float trigger(MotionEvent e, InputDevice d, int axis) {
+        InputDevice.MotionRange r = d.getMotionRange(axis, e.getSource());
+        if (r == null) return 0;
+        float v = e.getAxisValue(axis), min = r.getMin(), max = r.getMax();
+        return max > min ? (v - min) / (max - min) : 0;
+    }
+
     /** Sticks, triggers and hat switches of a controller; true if used. */
     boolean onMotion(MotionEvent e) {
         InputDevice dev = e.getDevice();
         if (!isController(dev) || e.getAction() != MotionEvent.ACTION_MOVE) return false;
         lx = axis(e, dev, MotionEvent.AXIS_X);
         ly = -axis(e, dev, MotionEvent.AXIS_Y);
-        // right stick: Z/RZ on most controllers, RX/RY on some
-        boolean zrz = dev.getMotionRange(MotionEvent.AXIS_Z) != null && dev.getMotionRange(MotionEvent.AXIS_RZ) != null;
-        rx = zrz ? axis(e, dev, MotionEvent.AXIS_Z) : axis(e, dev, MotionEvent.AXIS_RX);
-        ry = -(zrz ? axis(e, dev, MotionEvent.AXIS_RZ) : axis(e, dev, MotionEvent.AXIS_RY));
+        // right stick: Z/RZ (Xbox, DualSense and others with a key layout) or RX/RY (generic HID:
+        // 8BitDo in DInput / Switch mode, DualSense without a layout), where Z/RZ are the triggers.
+        // A trigger axis rests at its minimum (range 0..1 or -1..1 resting at -1); a stick centres at 0.
+        Layout l = layout(dev, e);
+        rx = axis(e, dev, l.rx);
+        ry = -axis(e, dev, l.ry);
         // analog triggers (controllers without L2/R2 key events) as L2 / R2
-        float lt = Math.max(axis(e, dev, MotionEvent.AXIS_LTRIGGER), axis(e, dev, MotionEvent.AXIS_BRAKE));
-        float rt = Math.max(axis(e, dev, MotionEvent.AXIS_RTRIGGER), axis(e, dev, MotionEvent.AXIS_GAS));
-        if (dev.getMotionRange(MotionEvent.AXIS_LTRIGGER) != null || dev.getMotionRange(MotionEvent.AXIS_BRAKE) != null)
-            press(KeyEvent.KEYCODE_BUTTON_L2, lt > 0.5f);
-        if (dev.getMotionRange(MotionEvent.AXIS_RTRIGGER) != null || dev.getMotionRange(MotionEvent.AXIS_GAS) != null)
-            press(KeyEvent.KEYCODE_BUTTON_R2, rt > 0.5f);
+        if (l.lt != 0) press(KeyEvent.KEYCODE_BUTTON_L2, trigger(e, dev, l.lt) > 0.5f);
+        if (l.rt != 0) press(KeyEvent.KEYCODE_BUTTON_R2, trigger(e, dev, l.rt) > 0.5f);
         // D-pad reported as a hat, as the D-pad's buttons
         float hx = e.getAxisValue(MotionEvent.AXIS_HAT_X), hy = e.getAxisValue(MotionEvent.AXIS_HAT_Y);
         if (hx != hatX || hy != hatY) {

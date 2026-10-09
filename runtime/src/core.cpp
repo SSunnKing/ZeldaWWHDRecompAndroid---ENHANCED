@@ -2,7 +2,9 @@
 #ifdef __APPLE__
 #include <mach-o/ldsyms.h>  // _mh_execute_header
 #endif
+#include <fcntl.h>
 #include <sys/mman.h>
+#include <unistd.h>
 #include <zlib.h>
 
 #include <algorithm>
@@ -23,6 +25,7 @@
 bool g_trace_hle = getenv("WWHD_TRACE_HLE") != nullptr;  // log HLE calls and file accesses (macOS: --trace)
 namespace config {
 std::string game_dir = "game";
+std::string content_overlay;
 std::string save_dir = "save";
 std::string cache_dir;
 std::string code_dir;
@@ -51,11 +54,28 @@ void log_msg(const char* fmt, ...) {
     va_end(ap);
 }
 
+// the app's GPU crash marker (WWHD_GPU_CRASH_FILE): why the last session ended, read at the next
+// start to turn on the GPU safe mode (MainActivity). Written for Vulkan errors (device lost, a
+// driver failing) and crashes inside the GPU driver (main.cpp's crash handler).
+void gpu_crash_marker(const char* why) {
+    static const char* path = getenv("WWHD_GPU_CRASH_FILE");
+    if (!path || !*path) return;
+    int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd < 0) return;
+    write(fd, why, strlen(why));
+    close(fd);
+}
+
 void fatal(const char* fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
     log_v("FATAL: ", fmt, ap);
     va_end(ap);
+    char msg[512];
+    va_start(ap, fmt);
+    vsnprintf(msg, sizeof msg, fmt, ap);
+    va_end(ap);
+    if (strstr(msg, "VkResult") || strstr(msg, "vk") || strstr(msg, "Vulkan")) gpu_crash_marker(msg);
     abort();
 }
 

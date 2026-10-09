@@ -216,6 +216,7 @@ extern "C" void site_025ADB38(Cpu* c) { adjust_projection_args(c, 1, 2); }
 //     for the call (dirty bit forced so the matrix is recomputed), so animations and game code keep
 //     their values. Panes the game parks off the 16:9 screen are not drawn (they would show in the
 //     extra space).
+namespace interp { bool menu_open(); }
 extern "C" {
 void f_02874038_orig(Cpu* c);
 void f_028766CC_orig(Cpu* c);
@@ -234,7 +235,21 @@ bool root_on_tv(uint32_t root) {
         if (r == root) return tv;
     return true;  // not reported (yet): layouts are TV layouts unless seen on the GamePad
 }
+// the swap each layout root was last drawn at (any screen): layouts the game keeps but doesn't draw
+// (a parked copy of the HUD) don't give the HUD editor their bounds
+std::unordered_map<uint32_t, uint64_t> g_root_drawn;
+bool root_drawn_recently(uint32_t root) {
+    std::lock_guard<std::mutex> lk(g_root_mu);
+    auto it = g_root_drawn.find(root);
+    return it != g_root_drawn.end() && g_swaps - it->second < 30;
+}
+void mark_drawn(uint32_t root) {
+    std::lock_guard<std::mutex> lk(g_root_mu);
+    if (g_root_drawn.size() > 512) g_root_drawn.clear();
+    g_root_drawn[root] = g_swaps;
+}
 void set_root_tv(uint32_t root, bool tv) {
+    mark_drawn(root);
     std::lock_guard<std::mutex> lk(g_root_mu);
     for (auto& e : g_root_tv)
         if (e.first == root) { e.second = tv; return; }
@@ -289,15 +304,114 @@ bool is_hud_edge_pane(uint32_t pane) {
     return false;
 }
 
+// The player's HUD positions (Controls > HUD positions): an offset in layout units (1280x720 picture)
+// per HUD part, added to the part's translation while its matrices are computed, like the anchoring
+// above (the game's own values stay untouched). TV layouts only.
+std::atomic<int32_t> g_hud_off[aspect::kHudParts][2];
+std::atomic<int32_t> g_hud_scale[aspect::kHudParts] = {100, 100, 100, 100, 100};  // percent
+std::atomic<bool> g_hud_hidden[aspect::kHudParts];
+// where each part was last drawn (layout units, y up): the union of its visible panes
+std::mutex g_bounds_mu;
+float g_bounds[aspect::kHudParts][4];
+bool g_bounds_ok[aspect::kHudParts];
+float g_bounds_acc[aspect::kHudParts][4];
+bool g_bounds_any[aspect::kHudParts];
+thread_local int t_part = -1;  // the part whose panes are being computed
+int hud_part(uint32_t pane) {
+    // root children by name; WWHD_HUD_LOG=1 lists them
+    static const char* const kNames[aspect::kHudParts][3] = {
+        {"N_TV_00", "N_Default_00", nullptr},  // hearts and magic (top left; N_DRC_00 is the GamePad's)
+        {"L_Rupy_00", nullptr, nullptr},  // rupees
+        {nullptr, nullptr, nullptr},  // the button cluster: an N_All_00 holding N_X_00 (below)
+        {"L_DungeonKey_00", nullptr, nullptr},  // small keys
+        {"L_CompassClock_00", nullptr, nullptr},  // the wind compass and clock
+    };
+    for (int i = 0; i < aspect::kHudParts; i++)
+        for (const char* n : kNames[i])
+            if (n && name_is(pane, n)) return i;
+    // N_All_00 is a container many layouts use (the message box's choices too): the item buttons'
+    // is the one with the X button among its children
+    if (name_is(pane, "N_All_00")) {
+        uint32_t sentinel = pane + kPaneChildren;
+        uint32_t n = ld32(sentinel);
+        for (int k = 0; k < 64 && n && n != sentinel; k++, n = ld32(n))
+            if (name_is(n, "N_X_00")) return aspect::kHudButtons;
+    }
+    return -1;
+}
+
 thread_local uint32_t t_root = 0;   // layout root whose matrices are being computed
 thread_local bool t_anchor = false; // ... and it is a TV layout at another aspect ratio
+thread_local bool t_tv = false;     // ... and it is a TV layout
 }  // namespace
 }  // namespace aspect
+
+// the game's "Skip" prompt (T_Skip_00): its layout runs, hidden until + is pressed once, for as long
+// as a skippable scene plays (the prologue, story cutscenes) and not otherwise
+static std::atomic<uint64_t> g_skip_swap{0};
+bool aspect::skippable_scene() {
+    uint64_t s = g_skip_swap.load(std::memory_order_relaxed);
+    return s && g_swaps - s <= 8;
+}
+
+static void calc_mtx(Cpu* c);
+
+// a pane of the part being computed, after its matrices: grows the part's bounds
+static void add_bounds(uint32_t pane, int part) {
+    using namespace aspect;
+    // drawn: visible itself and up to the layout root, and not fully transparent (global alpha)
+    if (ld8(pane + 0x46) == 0) return;
+    for (uint32_t p = pane; p; p = ld32(p + kPaneParent))
+        if (!(ld8(p + kPaneFlags) & 1) || ld8(p + 0x45) == 0) return;
+    float w = (float)ldf32(pane + kPaneSize), h = (float)ldf32(pane + kPaneSize + 4);
+    float gx = (float)ldf32(pane + kPaneGlobal + 0xC), gy = (float)ldf32(pane + kPaneGlobal + 0x1C);
+    float ax = std::fabs((float)ldf32(pane + kPaneGlobal)), ay = std::fabs((float)ldf32(pane + kPaneGlobal + 0x14));
+    if (!(w > 0.0f && h > 0.0f && w < 1200.0f && h < 700.0f) || !std::isfinite(gx) || !std::isfinite(gy) || !(ax > 0.0f && ax < 20.0f)) return;
+    float hw = 0.5f * w * ax, hh = 0.5f * h * ay;
+    // panes the game parks off the screen (unused prompts, a second copy of the layout) don't count
+    float kx, ky;
+    factors(g_game, kx, ky);
+    if (std::fabs(gx) - hw > 640.0f * kx || std::fabs(gy) - hh > 360.0f * ky) return;
+    static const bool log_b = getenv("WWHD_HUD_LOG") != nullptr;
+    if (log_b) {
+        static std::mutex mu;
+        static std::unordered_map<uint32_t, int> seen;
+        std::lock_guard<std::mutex> lk(mu);
+        if (seen[pane]++ == 0)
+            LOG("[hudb] part %d '%.24s' g %.0f,%.0f half %.0f,%.0f size %.0fx%.0f vt %08X", part, (const char*)mem::ptr(pane + kPaneName), gx, gy, hw, hh, w, h, ld32(pane + 8));
+    }
+    float* b = g_bounds_acc[part];
+    if (!g_bounds_any[part]) { b[0] = gx - hw; b[1] = gy - hh; b[2] = gx + hw; b[3] = gy + hh; g_bounds_any[part] = true; return; }
+    b[0] = std::min(b[0], gx - hw); b[1] = std::min(b[1], gy - hh);
+    b[2] = std::max(b[2], gx + hw); b[3] = std::max(b[3], gy + hh);
+}
 
 // Pane::CalculateMtx(this, DrawInfo&, bool parentDirty)
 extern "C" void hook_028766CC(Cpu* c) {
     using namespace aspect;
+    uint32_t pane = c->r[3], parent = ld32(pane + kPaneParent);
+    int part = parent && parent == t_root && t_tv && t_part < 0 ? hud_part(pane) : -1;
+    if (part >= 0) {
+        g_bounds_any[part] = false;
+        t_part = part;
+        calc_mtx(c);
+        t_part = -1;
+        add_bounds(pane, part);
+        if (g_bounds_any[part] && !g_hud_hidden[part].load(std::memory_order_relaxed) && root_drawn_recently(t_root)) {
+            std::lock_guard<std::mutex> lk(g_bounds_mu);
+            memcpy(g_bounds[part], g_bounds_acc[part], sizeof g_bounds[part]);
+            g_bounds_ok[part] = true;
+        }
+        return;
+    }
+    calc_mtx(c);
+    if (t_part >= 0 && parent) add_bounds(pane, t_part);
+}
+
+static void calc_mtx(Cpu* c) {
+    using namespace aspect;
     uint32_t pane = c->r[3];
+    if (ld32(pane + kPaneName) == 0x545F536B /* "T_Sk" */ && name_is(pane, "T_Skip_00")) g_skip_swap.store(g_swaps ? g_swaps : 1, std::memory_order_relaxed);
     uint32_t parent = ld32(pane + kPaneParent);
     float kx, ky;
     factors(g_game, kx, ky);
@@ -305,19 +419,30 @@ extern "C" void hook_028766CC(Cpu* c) {
         uint32_t saveRoot = t_root;
         bool saveAnchor = t_anchor;
         t_root = pane;
-        t_anchor = (kx != 1.0f || ky != 1.0f) && root_on_tv(pane);
+        t_tv = root_on_tv(pane);
+        t_anchor = (kx != 1.0f || ky != 1.0f) && t_tv;
         // a root placed by the game (layouts are authored with the root at 0,0): small layouts put at
         // an actor's projected screen position (cursors, markers) -> scaled out with the 3D view
         float tx = (float)ldf32(pane + kPaneTrans), ty = (float)ldf32(pane + kPaneTrans + 4);
-        bool placed = t_anchor && (tx != 0.0f || ty != 0.0f);
+        // not in the game's menus (pause / item menu, title, file select): their cursors are roots
+        // placed on menu panes, which stay in 16:9 layout space
+        bool placed = t_anchor && (tx != 0.0f || ty != 0.0f) && !interp::menu_open();
         // debug: WWHD_ASPECT_LOG=1 logs each placed root (name, translation) once per name
         static const bool log_roots = getenv("WWHD_ASPECT_LOG") != nullptr;
         if (log_roots && placed) {
             static std::mutex mu;
-            static std::unordered_map<std::string, int> seen;
+            static std::unordered_map<uint32_t, std::pair<float, float>> seen;
             std::string nm((const char*)mem::ptr(pane + kPaneName), strnlen((const char*)mem::ptr(pane + kPaneName), 24));
             std::lock_guard<std::mutex> lk(mu);
-            if (seen[nm]++ == 0) LOG("[aspect] placed root '%s' at %.1f, %.1f", nm.c_str(), tx, ty);
+            auto& v = seen[pane];
+            if (v.first != tx || v.second != ty) {
+                v = {tx, ty};
+                uint32_t first = ld32(pane + kPaneChildren);
+                std::string child = first && first != pane + kPaneChildren
+                    ? std::string((const char*)mem::ptr(first + kPaneName), strnlen((const char*)mem::ptr(first + kPaneName), 24)) : "";
+                LOG("[aspect] placed root '%s' %08X at %.1f, %.1f size %.0fx%.0f first child '%s'", nm.c_str(), pane, tx, ty,
+                    (float)ldf32(pane + kPaneSize), (float)ldf32(pane + kPaneSize + 4), child.c_str());
+            }
         }
         // matrices are only recomputed for dirty panes: after an aspect change, the whole tree
         if (anchor_changed(pane, t_anchor) || (g_changed_swap && g_swaps - g_changed_swap < 4)) c->r[5] = 1;
@@ -329,9 +454,59 @@ extern "C" void hook_028766CC(Cpu* c) {
         t_anchor = saveAnchor;
         return;
     }
+    // debug: WWHD_HUD_LOG=1 lists every TV layout's root children (name, translation) once
+    static const bool log_hud = getenv("WWHD_HUD_LOG") != nullptr;
+    if (log_hud && t_tv && parent != t_root && ld32(parent + kPaneParent) == t_root) {  // and one level down
+        static std::mutex mu2;
+        static std::unordered_map<std::string, int> seen2;
+        auto nm = [](uint32_t p) { return std::string((const char*)mem::ptr(p + kPaneName), strnlen((const char*)mem::ptr(p + kPaneName), 24)); };
+        std::string key = nm(parent) + "/" + nm(pane);
+        std::lock_guard<std::mutex> lk(mu2);
+        if (seen2[key]++ == 0)
+            LOG("[hud]   '%s' at %.1f, %.1f", key.c_str(), (float)ldf32(pane + kPaneTrans), (float)ldf32(pane + kPaneTrans + 4));
+    }
+    if (log_hud && parent == t_root && t_tv) {
+        static std::mutex mu;
+        static std::unordered_map<std::string, int> seen;
+        auto nm = [](uint32_t p) { return std::string((const char*)mem::ptr(p + kPaneName), strnlen((const char*)mem::ptr(p + kPaneName), 24)); };
+        std::string key = nm(t_root) + "/" + nm(pane);
+        std::lock_guard<std::mutex> lk(mu);
+        if (seen[key]++ == 0)
+            LOG("[hud] '%s' at %.1f, %.1f", key.c_str(), (float)ldf32(pane + kPaneTrans), (float)ldf32(pane + kPaneTrans + 4));
+    }
+    // the player's HUD position for this part
+    int part = parent == t_root && t_tv ? hud_part(pane) : -1;
+    float ux = part >= 0 ? (float)g_hud_off[part][0].load(std::memory_order_relaxed) : 0.0f;
+    float uy = part >= 0 ? (float)g_hud_off[part][1].load(std::memory_order_relaxed) : 0.0f;
+    // the part's size (percent) and whether it is shown
+    float us = part < 0 ? 1.0f : g_hud_hidden[part].load(std::memory_order_relaxed) ? 0.0f
+                                : (float)g_hud_scale[part].load(std::memory_order_relaxed) / 100.0f;
+    if (log_hud && part >= 0) {
+        static uint64_t last[aspect::kHudParts];
+        if (g_swaps - last[part] > 300) {
+            last[part] = g_swaps;
+            LOG("[hud] part %d pane %08X at %.1f, %.1f offset %.0f, %.0f anchor %d", part, pane, (float)ldf32(pane + kPaneTrans),
+                (float)ldf32(pane + kPaneTrans + 4), ux, uy, (int)t_anchor);
+        }
+    }
     if (!t_anchor) {
-        if (parent == t_root) set_offset(pane, 0, 0);
+        if (parent == t_root) set_offset(pane, ux, -uy);
+        if (ux == 0.0f && uy == 0.0f && us == 1.0f) {
+            f_028766CC_orig(c);
+            return;
+        }
+        float tx = (float)ldf32(pane + kPaneTrans), ty = (float)ldf32(pane + kPaneTrans + 4);
+        float sx = (float)ldf32(pane + kPaneScale), sy = (float)ldf32(pane + kPaneScale + 4);
+        st8(pane + kPaneFlags, ld8(pane + kPaneFlags) | kPaneMtxDirty);
+        stf32(pane + kPaneTrans, tx + ux);
+        stf32(pane + kPaneTrans + 4, ty - uy);  // layout y points up; the setting's y points down
+        stf32(pane + kPaneScale, sx * us);
+        stf32(pane + kPaneScale + 4, sy * us);
         f_028766CC_orig(c);
+        stf32(pane + kPaneTrans, tx);
+        stf32(pane + kPaneTrans + 4, ty);
+        stf32(pane + kPaneScale, sx);
+        stf32(pane + kPaneScale + 4, sy);
         return;
     }
     float tx = (float)ldf32(pane + kPaneTrans), ty = (float)ldf32(pane + kPaneTrans + 4);
@@ -368,6 +543,10 @@ extern "C" void hook_028766CC(Cpu* c) {
             }
         }
     }
+    nx += ux;  // the player's HUD position and size on top
+    ny -= uy;
+    nsx *= us;
+    nsy *= us;
     bool moved = nx != tx || ny != ty, scaled = nsx != sx || nsy != sy;
     static const bool log_moves = getenv("WWHD_ASPECT_LOG") != nullptr;
     if (log_moves && moved && parent == t_root) {
@@ -393,20 +572,45 @@ extern "C" void hook_028766CC(Cpu* c) {
 extern "C" void hook_02877100(Cpu* c) {
     using namespace aspect;
     uint32_t pane = c->r[3];
-    if (original()) { f_02877100_orig(c); return; }
     uint32_t parent = ld32(pane + kPaneParent);
-    if (!parent) {
-        gx2::emit(gx2::OP_LAYOUT_ROOT, {pane});
-    } else {
+    if (!parent) gx2::emit(gx2::OP_LAYOUT_ROOT, {pane});  // also at 16:9: the HUD editor wants the drawn roots
+    if (original()) { f_02877100_orig(c); return; }
+    if (parent) {
         // the wider (taller) picture shows layout space the game uses to park panes out of sight:
         // a pane whose centre, without our offsets, is off the 16:9 screen stays hidden
         uint32_t child = pane, root = parent;
         for (int i = 0; i < 16 && ld32(root + kPaneParent); i++) { child = root; root = ld32(root + kPaneParent); }
-        if (!ld32(root + kPaneParent) && root_on_tv(root)) {
+        // not in the game's menus: the item menu slides its pages with the layout's view, not the
+        // panes, so the page being shown has panes "beyond" the screen (they all vanished)
+        if (!ld32(root + kPaneParent) && root_on_tv(root) && !interp::menu_open()) {
             auto a = offset_of(child), b = offset_of(root);
             float gx = (float)ldf32(pane + kPaneGlobal + 0xC) - a.first - b.first;
             float gy = (float)ldf32(pane + kPaneGlobal + 0x1C) - a.second - b.second;
-            if (std::fabs(gx) > 640.0f + 32.0f || std::fabs(gy) > 360.0f + 32.0f) return;
+            // the pane's half extent (size times its global scale): hidden only when it lies wholly
+            // outside the 16:9 screen (the item menu's tabs and page arrows reach into it from beyond)
+            float hw = 0.5f * (float)ldf32(pane + kPaneSize) * std::fabs((float)ldf32(pane + kPaneGlobal));
+            float hh = 0.5f * (float)ldf32(pane + kPaneSize + 4) * std::fabs((float)ldf32(pane + kPaneGlobal + 0x14));
+            if (!(hw >= 0.0f && hw < 4096.0f)) hw = 0.0f;
+            if (!(hh >= 0.0f && hh < 4096.0f)) hh = 0.0f;
+            if (std::fabs(gx) - hw > 640.0f + 32.0f || std::fabs(gy) - hh > 360.0f + 32.0f) {
+                static const bool log_hide = getenv("WWHD_ASPECT_LOG") != nullptr;
+                if (log_hide) {
+                    static std::mutex mu;
+                    static std::unordered_map<uint32_t, int> seen;
+                    std::lock_guard<std::mutex> lk(mu);
+                    if (seen[pane]++ % 300 == 0)
+                        LOG("[aspect] hidden '%.24s' %08X (child '%.24s', root %08X): %.1f, %.1f", (const char*)mem::ptr(pane + kPaneName), pane,
+                            (const char*)mem::ptr(child + kPaneName), root, gx, gy);
+                }
+                static const bool log_hud = getenv("WWHD_HUD_LOG") != nullptr;
+                if (log_hud && (a.first != 0.0f || a.second != 0.0f)) {
+                    static uint64_t n = 0;
+                    if (n++ % 600 == 0)
+                        LOG("[hud] hidden pane %08X under %08X: global %.1f, %.1f, offsets %.1f, %.1f", pane, child,
+                            (float)ldf32(pane + kPaneGlobal + 0xC), (float)ldf32(pane + kPaneGlobal + 0x1C), a.first, a.second);
+                }
+                return;
+            }
         }
     }
     f_02877100_orig(c);
@@ -423,7 +627,11 @@ static void with_tv_projection(Cpu* c, void (*fn)(Cpu*)) {
 }
 namespace aspect {
 bool tagged_projection() { return t_tag > 0; }
-void layout_root_target(uint32_t root, bool tv) { set_root_tv(root, tv); }
+// at 16:9 the target can't be told apart (no factors): only that the root was drawn
+void layout_root_target(uint32_t root, bool tv) {
+    if (original()) mark_drawn(root);
+    else set_root_tv(root, tv);
+}
 }  // namespace aspect
 
 // DrawInfo::LoadProjectionMtx(this): TV layouts are drawn into the wider screen undistorted
@@ -436,6 +644,32 @@ extern "C" void hook_028F8250(Cpu* c) { with_tv_projection(c, f_028F8250_orig); 
 
 // a loaded save state brings layout matrices cached under whatever aspect was active when it was
 // saved: forget which roots were computed, so each recomputes its whole tree once
+void aspect::set_hud_offset(int part, int dx, int dy) {
+    if (part < 0 || part >= kHudParts) return;
+    g_hud_off[part][0] = dx;
+    g_hud_off[part][1] = dy;
+    g_changed_swap = g_swaps ? g_swaps : 1;  // every layout recomputes its matrices for a few frames
+}
+void aspect::set_hud_scale(int part, int pct, bool hidden) {
+    if (part < 0 || part >= kHudParts) return;
+    g_hud_scale[part] = std::clamp(pct, 25, 400);
+    g_hud_hidden[part] = hidden;
+    g_changed_swap = g_swaps ? g_swaps : 1;
+}
+void aspect::refresh_hud() { g_changed_swap = g_swaps ? g_swaps : 1; }
+void aspect::hud_bounds(float out[kHudParts * 4 + 2]) {
+    {
+        std::lock_guard<std::mutex> lk(g_bounds_mu);
+        for (int p = 0; p < kHudParts; p++)
+            for (int i = 0; i < 4; i++) out[p * 4 + i] = g_bounds_ok[p] ? g_bounds[p][i] : NAN;
+    }
+    float kx, ky;
+    factors(g_game, kx, ky);
+    out[kHudParts * 4] = kx;
+    out[kHudParts * 4 + 1] = ky;
+}
+int aspect::hud_offset(int part, int axis) { return part >= 0 && part < kHudParts ? g_hud_off[part][axis & 1].load() : 0; }
+
 void aspect::ss_reset() {
     std::lock_guard<std::mutex> lk(aspect::g_root_mu);
     aspect::g_root_calc.clear();

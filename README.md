@@ -11,15 +11,21 @@ compiles the game code on your device on the first start. Its full README (getti
 controllers, frame generation, building) is in [docs/android-port-readme.md](docs/android-port-readme.md).
 
 **The app contains no game files**, no game code and no keys. You need your own Wii U disc image
-(`.wud`/`.wux`) with its keys.
+(`.wud`/`.wux`) with its keys, or your own Wii U archive (`.wua`, Cemu's compressed format, no keys
+needed).
 
 ## What this fork adds
 
 ### Touch controls made for a phone
 - **Floating left stick**: it appears where your thumb lands on the left side and stays there until
   you lift it.
-- **Camera by swiping** on the right side of the screen, with an adjustable speed; double tap to
+- **Camera stick** on the right (Controls → *Camera stick*, movable in the layout editor), and
+  **camera by swiping** on the right side of the screen, with an adjustable speed; double tap to
   center it behind Link.
+- **HUD positions** (Controls → *HUD positions*): move the hearts, rupees, item buttons, small keys
+  and the wind compass of the game's own HUD.
+- **A controller hides the touch controls** as soon as it connects; touching the screen brings
+  them back.
 - **Context buttons that follow your game**: the app reads your save data, so
   - **B** shows the sword (or nothing until you have one), **ZR** the shield (or crouch);
   - **X / Y / R** show the item you assigned, with the game's own item artwork;
@@ -27,6 +33,8 @@ controllers, frame generation, building) is in [docs/android-port-readme.md](doc
     you have a sword;
   - the **D-pad** buttons (Wind Waker, cannon, salvage hook) appear once you have those items.
 - **One-touch combat moves**: each button performs the GamePad combination for you.
+- **Menus that fit any phone**: the options menu scales to the screen, with a *Menu size* setting
+  (Game tab).
 - **Layout editor** (✎ next to the menu button): move and resize every control on a grid, remove the
   ones you don't want and put them back from a panel.
 - **Gyro aiming** with the phone's sensors (and a recalibrate button), **rumble** as the phone's
@@ -66,7 +74,12 @@ Snapdragon 8 Gen 2:
 - redundant Vulkan state skipped, cheaper shader and texture lookups, context switches that copy
   only the registers in use, descriptor sets reused between draws;
 - **ADPF performance hints** and a choice of **CPU cores** (automatic, performance cores, or the
-  prime core for the game or the renderer);
+  prime core for the game or the renderer). The default is now the prime core for the game thread:
+  on a Galaxy S20 FE (Snapdragon 865, no ADPF) Outset went from 30 to 53-57 fps in 60 fps mode;
+- guest threads skip wake-ups nobody waits for (each one was a futex syscall), and the game no longer
+  computes the gyro state on every "is the Pro Controller active" query;
+- fixes for 6 GB phones and Qualcomm drivers: save states no longer get the app killed for memory,
+  and BC textures decoded on the GPU no longer hang Adreno 650 drivers at the title screen;
 - the guest vsync clock **locked to the display**, the screen asked for 60 Hz instead of 120, a
   pre-rotated swapchain, and a scheduler tick that sleeps when idle;
 - from the original project: the Miiverse thread that spun a whole core is throttled, the pipeline
@@ -97,9 +110,11 @@ over the island, big islands seen from afar) can still drop, and a hot phone low
 ## Getting started
 
 1. Put your disc image (`.wux` or `.wud`), its disc key (`.key`, same name as the image) and the
-   Wii U common key (`common.key`) in one folder on your device.
-2. Install the APK from the Releases page and start it. Choose **Extract from your disc image…**
-   and select that folder.
+   Wii U common key (`common.key`) in one folder on your device. Or put only your Wii U archive
+   (`.wua`, as made by Cemu's *Convert to compressed Wii U archive*) there: it needs no keys, and
+   an update or DLC stored in it is skipped (the app uses the base game).
+2. Install the APK from the Releases page and start it. Choose **Extract from your disc image or
+   .wua…** and select that folder.
 3. The app extracts the game and compiles its code for your device (about 5 minutes, once).
 
 Requirements: Android 11 or newer, 64-bit ARM, Vulkan 1.1, about 2 GB of free storage and memory.

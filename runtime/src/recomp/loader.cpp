@@ -9,6 +9,7 @@
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/TargetSelect.h>
 
+#include <algorithm>
 #include <dirent.h>
 #include <dlfcn.h>
 #include <sys/stat.h>
@@ -270,6 +271,20 @@ bool load_game_code(const std::string& rpxPath, const std::string& dir, std::str
             return false;
         }
         imports.push_back({slot, im.function ? slot : im.dataAddr, im.lib.c_str(), im.name.c_str(), im.function, fn});
+    }
+    // profiling aid: WWHD_PERF_MAP=path writes "host address, size, name" of every game function
+    // (perf map format) for symbolizing samples in the JIT-linked code (simpleperf shows it as unknown)
+    if (const char* pm = getenv("WWHD_PERF_MAP")) {
+        std::vector<std::pair<uintptr_t, uint32_t>> v;
+        for (auto& f : funcs) v.push_back({(uintptr_t)f.fn, release::usa_code(f.addr) ? release::usa_code(f.addr) : f.addr});
+        std::sort(v.begin(), v.end());
+        if (FILE* f = fopen(pm, "w")) {
+            for (size_t i = 0; i < v.size(); i++) {
+                size_t size = i + 1 < v.size() ? v[i + 1].first - v[i].first : 4096;
+                fprintf(f, "%lx %zx f_%08X\n", (unsigned long)v[i].first, size, v[i].second);
+            }
+            fclose(f);
+        }
     }
     g_recomp_funcs = funcs.data();
     g_recomp_func_count = (unsigned)funcs.size();

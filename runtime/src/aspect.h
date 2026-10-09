@@ -20,5 +20,14 @@ uint64_t game_frame();                // swaps so far                      // as
 // and reports where each root went
 bool tagged_projection();                          // gx2: the vertex uniform upload in progress is one
 void layout_root_target(uint32_t root, bool tv);   // render thread (OP_LAYOUT_ROOT)
+// the player's HUD positions: offsets in 1280x720 layout pixels (x right, y down) per part
+enum HudPart : int { kHudHearts = 0, kHudRupees, kHudButtons, kHudKeys, kHudCompass, kHudParts };
+void set_hud_offset(int part, int dx, int dy);
+int hud_offset(int part, int axis);
+void set_hud_scale(int part, int pct, bool hidden);  // size in percent, or not drawn
+void refresh_hud();  // every layout recomputes its matrices (the editor wants fresh bounds)
+// per part {left, bottom, right, top} in layout units (centre 0, y up; NaN: not seen yet), then kx, ky
+void hud_bounds(float out[kHudParts * 4 + 2]);
+bool skippable_scene();  // a scene the game lets + skip is playing (its Skip prompt's layout runs)
 void ss_reset();  // save state loaded: every layout recomputes its matrices once
 }  // namespace aspect

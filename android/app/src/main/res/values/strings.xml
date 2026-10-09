@@ -3,13 +3,72 @@
     <string name="app_name">TLoZ:TWW HD Recompiled</string>
 
     <string name="setup_text">The game files were not found or don\'t match this build.\n\nThis app contains only the recompiled code built from your own copy of the game; it needs the extracted game files from the same dump. Extract them on a computer (see README.md: tools/wudextract.py), then copy the resulting folder (with code/, content/ and meta/ inside) to:\n\n%1$s\n\nFor example: adb push game /sdcard/Android/data/org.wwhdrecomp.app/files/\n\nProblem: %2$s</string>
+    <string name="touch_skip">Skip</string>
+    <string name="motion_source_pad">Now: the sensors of %1$s</string>
+    <string name="motion_source_device">Now: this device\'s sensors</string>
+    <string name="motion_source_device_no_pad">Now: this device\'s sensors (the controller in use reports none)</string>
+    <string name="motion_source_off">Now: off</string>
+    <string name="gpu_safe_title">GPU safe mode</string>
+    <string name="restart_needed">This applies after a restart.</string>
+    <string name="gpu_safe_notice">The game closed last time because of the GPU driver (%2$s). It now runs in GPU safe mode level %1$d, which avoids features some drivers handle badly. You can change it under Graphics › GPU safe mode.</string>
+    <string name="opt_gpu_safe">GPU safe mode</string>
+    <string name="opt_gpu_safe_hint">Turned on by itself after a GPU driver crash; avoids features some drivers handle badly. Applies after a restart</string>
+    <string-array name="gpu_safe_modes">
+        <item>Off</item>
+        <item>Basic</item>
+        <item>Maximum</item>
+    </string-array>
+    <string name="opt_ptbr">Portuguese (Brazil) translation</string>
+    <string name="opt_ptbr_hint">The game\'s text in Brazilian Portuguese (Triforce-Heroes fan translation)</string>
+    <string name="ptbr_not_installed">not installed</string>
+    <string name="ptbr_about">Plays the game with the Brazilian Portuguese fan translation by Triforce-Heroes (triforce-heroes.com.br). The translation replaces the English text, so turning it on sets the game language to English. If it isn\'t installed, choose its folder (the Cemu version or the console version, the folder with rules.txt).</string>
+    <string name="ptbr_install">Install the translation…</string>
+    <string name="ptbr_install_hint">Choose the translation\'s folder</string>
+    <string name="ptbr_install_other">Install another version…</string>
+    <string name="ptbr_installed">Installed: %1$s</string>
+    <string name="ptbr_toggle_hint">Applies after a restart</string>
+    <string name="ptbr_remove">Remove the translation</string>
+    <string name="ptbr_remove_confirm">Delete the installed translation files? You can install them again later.</string>
+    <string name="ptbr_installing">Installing the translation…</string>
+    <string name="ptbr_failed">The translation could not be installed: %1$s</string>
+    <string name="ptbr_not_found">No translation files (permanent_2d_*.pack) in that folder.</string>
+    <string name="ptbr_on_restart">The translation is on and the game language is English. Restart the game to play in Portuguese.</string>
+    <string name="ptbr_off_restart">The translation is off. Restart the game to apply.</string>
+    <string name="opt_camera_stick">Camera stick</string>
+    <string name="opt_camera_stick_hint">A stick on the right that turns the camera (move it in Edit touch layout). Swiping the right side still works</string>
+    <string name="opt_hud">HUD layout</string>
+    <string name="opt_hud_hint">Move, resize or hide the hearts, rupees, buttons and the rest of the game\'s HUD</string>
+    <string name="hud_hidden">hidden</string>
+    <string name="hud_hide_all">Hide HUD</string>
+    <string name="hud_show_all">Show HUD</string>
+    <string name="hud_edit_hint">Touch a part · drag to move · corner handle or pinch to resize · 🗑 hides it, + shows it · ↺ resets · ✓ or Back to finish</string>
+    <string-array name="hud_parts">
+        <item>Hearts and magic</item>
+        <item>Rupees</item>
+        <item>Item buttons</item>
+        <item>Small keys</item>
+        <item>Wind compass and clock</item>
+    </string-array>
+    <string name="opt_app_language">App language</string>
+    <string name="opt_app_language_hint">This app\'s menus and messages (the game\'s text is under Game › Game language, or the translation in Mods)</string>
+    <string-array name="app_languages">
+        <item>System</item>
+        <item>English</item>
+        <item>Português (Brasil)</item>
+    </string-array>
+    <string name="pad_face_bottom">Bottom face button (A / Cross)</string>
+    <string name="pad_face_right">Right face button (B / Circle)</string>
+    <string name="pad_face_left">Left face button (X / Square)</string>
+    <string name="pad_face_top">Top face button (Y / Triangle)</string>
+    <string name="opt_menu_size">Menu size</string>
+    <string name="opt_menu_size_hint">The menus fit the screen on their own; this makes them smaller or larger.</string>
     <string name="setup_retry">Check again</string>
     <string name="setup_welcome">Welcome!\n\nThis app contains no game files. It plays your own copy of The Legend of Zelda: The Wind Waker HD for Wii U (USA, European or Japanese version).\n\nPut these three files in one folder on this device, then choose that folder:\n•  your disc image (.wux or .wud)\n•  its disc key (the image\'s name with .key)\n•  the console\'s common key (common.key)\n\nOr put a Cemu archive of your game (.wua) in a folder; it needs no keys.\n\nThe app then extracts the game files (about 1.7 GB) and prepares the game code for this device. That happens once and takes a while, depending on the device\'s processor.</string>
     <string name="setup_problem">The game files found don\'t work: %1$s</string>
     <string name="setup_extract">Extract from your disc image or .wua…</string>
     <string name="extract_missing">Choose the folder that holds your disc image, its disc key and the console\'s common key:\n\n%1$s the image (.wux or .wud)\n%2$s its disc key (the image\'s name with .key)\n%3$s common.key\n\nOr a folder that holds a Cemu archive of your game (.wua).</string>
     <string name="extract_bad_key">A key file must hold 16 bytes or 32 hex digits.</string>
-    <string name="extract_running">Extracting the game from your disc image…</string>
+    <string name="extract_running">Extracting the game files…</string>
     <string name="extract_detail">%1$d of %2$d MB (%3$.0f MB/s)</string>
     <string name="extract_detail_short">%1$d of %2$d MB</string>
     <string name="work_channel">Game setup</string>

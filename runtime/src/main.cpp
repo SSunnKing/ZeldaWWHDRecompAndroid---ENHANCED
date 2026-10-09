@@ -148,6 +148,12 @@ static void crash_handler(int sig, siginfo_t* si, void* uctx) {
         where[describe_host(where, sizeof where, pc)] = 0;
         n = snprintf(buf, sizeof buf, "  host pc %p%s\n", (void*)pc, where);
         crash_write(buf, std::min<int>(n, sizeof buf - 1));
+        // a crash inside the GPU driver: the next start runs in the GPU safe mode
+        if (strstr(where, "vulkan") || strstr(where, "adreno") || strstr(where, "gsl") || strstr(where, "freedreno")
+            || strstr(where, "mali") || strstr(where, "GLES") || strstr(where, "pvr") || strstr(where, "llvm-glnext")) {
+            void gpu_crash_marker(const char* why);
+            gpu_crash_marker(where);
+        }
     }
     if (!(a >= base && a < base + 0x100000000ull) && describe_host(where, sizeof where, a)) {
         n = snprintf(buf, sizeof buf, "  fault address %p%s\n", si->si_addr, where);

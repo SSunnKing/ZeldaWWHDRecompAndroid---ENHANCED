@@ -13,15 +13,24 @@
 // Test switch: WWHD_CHEAT=items,sword,stats,songs,triforce,dungeon,key applies those once a save
 // file is loaded; WWHD_CHEAT_INFINITE=health,magic,ammo switches those on.
 // WWHD_CHEAT_SAVE_ADDR=hex overrides the address (another game version).
+// Test switch: WWHD_TEST_WARP=stage:room:point,stage:room:point,... once a file is loaded, goes to
+// each place in turn, one every WWHD_TEST_WARP_SECS seconds (default 25), as
+// dComIfGp_setNextStage does (layer -1: the one for the story progress). For trying the game's
+// places without playing up to them (performance, rendering).
+// WWHD_TEST_LOAD_STATE=slot loads that save state 8 s after the start, and
+// WWHD_TEST_SAVE_STATE=slot saves one once the warps are done (the last place).
 #include <atomic>
 #include <cstdlib>
 #include <cstring>
 #include <initializer_list>
+#include <cstdio>
 #include <string>
+#include <vector>
 
 #include "mods.h"
 #include "release.h"
 #include "runtime.h"
+#include "savestate.h"
 
 namespace mods {
 namespace {
@@ -143,7 +152,55 @@ void set_infinite(int which, bool on) {
     LOG("[cheats] infinite %s %s", which == kInfHealth ? "health" : which == kInfMagic ? "magic" : "ammo", on ? "on" : "off");
 }
 
+// dComIfG_play_c::mNextStage (dStage_nextStage_c): name[8], point s16, room s8, layer s8, enabled s8, wipe u8
+constexpr uint32_t kNextStage = 0x5140;
+
+void warp_service() {
+    static std::vector<std::string> places;
+    static size_t next = 0;
+    static int frames = -1, period = 0;
+    static int startFrames = 0;
+    if (startFrames >= 0 && ++startFrames > 30 * 8) {
+        startFrames = -1;
+        if (const char* e = getenv("WWHD_TEST_LOAD_STATE")) ss::request_load(atoi(e));
+    }
+    if (frames == -1) {
+        frames = 0;
+        const char* e = getenv("WWHD_TEST_WARP");
+        for (std::string rest = e ? e : ""; !rest.empty();) {
+            size_t c = rest.find(',');
+            places.push_back(rest.substr(0, c));
+            rest = c == std::string::npos ? "" : rest.substr(c + 1);
+        }
+        const char* sec = getenv("WWHD_TEST_WARP_SECS");
+        period = 30 * (sec ? atoi(sec) : 25);
+    }
+    if (next >= places.size()) {
+        static int saveIn = 30 * 15;  // in the last place, after it loaded
+        if (!places.empty() && saveIn > 0 && --saveIn == 0)
+            if (const char* e = getenv("WWHD_TEST_SAVE_STATE")) ss::request_save(atoi(e));
+        return;
+    }
+    uint32_t s = save_addr();
+    if (s < 0x10000000 || !save_loaded(s)) return;
+    if (++frames < (next == 0 ? 30 * 5 : period)) return;
+    frames = 0;
+    const std::string& p = places[next++];
+    char name[9] = {};
+    int room = 0, point = 0;
+    sscanf(p.c_str(), "%8[^:]:%d:%d", name, &room, &point);
+    uint32_t n = kStageInfo + kNextStage;
+    for (int i = 0; i < 8; i++) st8(n + i, (uint8_t)name[i]);
+    st16(n + 8, (uint16_t)(int16_t)point);
+    st8(n + 10, (uint8_t)(int8_t)room);
+    st8(n + 11, 0xFF);  // layer -1
+    st8(n + 13, 0);     // wipe
+    st8(n + 12, 1);     // enabled
+    LOG("[warp] from %s to %s room %d point %d", stage().c_str(), name, room, point);
+}
+
 void cheats_service() {
+    warp_service();
     int inf = g_infinite.load(std::memory_order_relaxed);
     if (!g_pending.load(std::memory_order_relaxed) && !inf) return;
     uint32_t s = save_addr();

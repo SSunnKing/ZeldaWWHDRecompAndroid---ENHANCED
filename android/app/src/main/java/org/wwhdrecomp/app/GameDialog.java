@@ -37,7 +37,9 @@ final class GameDialog extends Dialog {
     private boolean cancelable = true;
     private boolean top;  // in the upper part of the screen (above a soft keyboard)
 
-    GameDialog(Context c) { super(c, android.R.style.Theme_Translucent_NoTitleBar_Fullscreen); }
+    GameDialog(Context c) {
+        super(c instanceof android.app.Activity ? GameUi.fitted((android.app.Activity) c) : c, android.R.style.Theme_Translucent_NoTitleBar_Fullscreen);
+    }
 
     GameDialog title(int res) { title = getContext().getString(res); return this; }
     GameDialog title(CharSequence t) { title = t; return this; }

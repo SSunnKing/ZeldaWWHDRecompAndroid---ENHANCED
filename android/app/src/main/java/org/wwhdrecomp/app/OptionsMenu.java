@@ -61,10 +61,10 @@ final class OptionsMenu extends Dialog {
     private String languageAtOpen;  // the game language when the menu opened: a change asks for a restart on closing
 
     OptionsMenu(MainActivity a) {
-        super(a, android.R.style.Theme_Translucent_NoTitleBar_Fullscreen);
+        super(GameUi.fitted(a), android.R.style.Theme_Translucent_NoTitleBar_Fullscreen);
         this.a = a;
         languageAtOpen = a.gameLanguage();
-        dp = a.getResources().getDisplayMetrics().density;
+        dp = getContext().getResources().getDisplayMetrics().density;  // fitted to the screen
         tab = lastTab;
     }
 
@@ -98,12 +98,13 @@ final class OptionsMenu extends Dialog {
             v.setTypeface(Typeface.create("sans-serif-black", Typeface.NORMAL));
             v.setTextColor(Color.WHITE);
             v.setGravity(Gravity.CENTER);
-            v.setPadding(px(26), px(6), px(26), px(8));
+            v.setSingleLine(true);
+            v.setPadding(px(18), px(6), px(18), px(8));
             v.setFocusable(true);
             v.setOnClickListener(x -> selectTab(t));
             tabs[i] = v;
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
-            lp.rightMargin = px(10);
+            lp.rightMargin = px(8);
             top.addView(v, lp);
         }
         View spacer = new View(getContext());
@@ -331,7 +332,7 @@ final class OptionsMenu extends Dialog {
             boolean on = i == t;
             GameUi.Palette pal = TAB_COLORS[i];
             tabs[i].setBackground(new GameUi.TabPlate(getContext(), on, pal));
-            tabs[i].setTextSize(on ? 26 : 21);
+            tabs[i].setTextSize(on ? 24 : 20);
             ((GameUi.OutlinedText) tabs[i]).outline = on ? pal.dark : pal.muted().dark;
         }
         fill();
@@ -452,7 +453,7 @@ final class OptionsMenu extends Dialog {
                    Native.setOption("drawdone_mode", i);
                });
         choice(R.string.opt_core_mode, R.string.opt_core_mode_hint, a.getResources().getStringArray(R.array.core_modes),
-               a.prefs.getInt("core_mode", 0), i -> {
+               a.prefs.getInt("core_mode", MainActivity.DEFAULT_CORE_MODE), i -> {
                    a.prefs.edit().putInt("core_mode", i).apply();
                    Native.setOption("core_mode", i);
                });
@@ -476,6 +477,11 @@ final class OptionsMenu extends Dialog {
             a.prefs.edit().putInt("layout", i).apply();
             a.updateLayout();
         });
+        submenu(R.string.opt_hud, R.string.opt_hud_hint, a.getString(a.hudMoved() ? R.string.opt_buttons_custom : R.string.opt_buttons_default),
+                () -> {
+                    dismiss();  // the game, with the editor over it
+                    a.editHud();
+                });
         choice(R.string.opt_ao, 0, a.getResources().getStringArray(R.array.ao_modes), Native.getOption("ao_mode"), a::setAo);
         {  // bloom strength, percent (100: the original game)
             int[] pcts = {0, 25, 50, 75, 100, 125, 150, 200};
@@ -496,9 +502,38 @@ final class OptionsMenu extends Dialog {
                 () -> openPage(this::perfPage));
         if (GpuDrivers.supported())
             submenu(R.string.opt_gpu_driver, R.string.opt_gpu_driver_hint, a.gpuDriverLabel(), () -> openPage(this::gpuDriverPage));
+        choice(R.string.opt_gpu_safe, R.string.opt_gpu_safe_hint, a.getResources().getStringArray(R.array.gpu_safe_modes), a.gpuSafeLevel(), i -> {
+            a.setGpuSafeLevel(i);
+            a.askRestart(R.string.opt_gpu_safe);
+        });
         submenu(R.string.opt_shaders, R.string.opt_shaders_hint, "", a::askClearShaders);
         if (a.debuggable())  // a debugging aid: debug builds only
             submenu(R.string.opt_capture, R.string.opt_capture_hint, "", () -> Native.setOption("capture", 1));
+    }
+
+    // the Brazilian Portuguese fan translation (Translation.java)
+    private void ptbrPage() {
+        pageTitle(R.string.opt_ptbr);
+        note(a.getString(R.string.ptbr_about));
+        if (!a.ptbrInstalled()) {
+            submenu(R.string.ptbr_install, R.string.ptbr_install_hint, "", () -> a.pickFolder(MainActivity.PICK_TRANSLATION));
+            return;
+        }
+        String label = Translation.label(a.ptbrDir());
+        if (!label.isEmpty()) note(a.getString(R.string.ptbr_installed, label));
+        toggle(R.string.opt_ptbr, R.string.ptbr_toggle_hint, a.ptbrEnabled(), on -> {
+            dismiss();
+            a.setPtbr(on);
+        });
+        submenu(R.string.ptbr_install_other, 0, "", () -> a.pickFolder(MainActivity.PICK_TRANSLATION));
+        submenu(R.string.ptbr_remove, 0, "", () -> new GameDialog(getContext()).title(R.string.ptbr_remove).message(R.string.ptbr_remove_confirm)
+                .button(R.string.opt_cancel, null)
+                .button(R.string.ptbr_remove, () -> {
+                    boolean was = a.ptbrEnabled();
+                    a.removePtbr();
+                    fill();
+                    if (was) a.askRestartForLanguage();
+                }).show());
     }
 
     // cheats (runtime/src/mods/cheats.cpp): one-shot save data edits, and infinite health / magic / ammo
@@ -535,9 +570,33 @@ final class OptionsMenu extends Dialog {
             if (MainActivity.LANGUAGES[langs[i]].equals(a.gameLanguage())) curLang = i;
         }
         choice(R.string.opt_language, R.string.opt_language_hint, names, curLang, i -> a.setGameLanguage(MainActivity.LANGUAGES[langs[i]]));
+        choice(R.string.opt_app_language, R.string.opt_app_language_hint, a.getResources().getStringArray(R.array.app_languages),
+                a.prefs.getInt("app_language", 0), i -> {
+                    a.prefs.edit().putInt("app_language", i).commit();
+                    rows.post(() -> {  // the menus again in the new language
+                        dismiss();
+                        a.recreateUi();
+                    });
+                });
+        String[] sizes = new String[MainActivity.MENU_SIZES.length];
+        int curSize = 3;
+        for (int i = 0; i < sizes.length; i++) {
+            sizes[i] = Math.round(MainActivity.MENU_SIZES[i] * 100) + "%";
+            if (Math.abs(MainActivity.MENU_SIZES[i] - a.prefs.getFloat("menu_size", 1f)) < 0.01f) curSize = i;
+        }
+        choice(R.string.opt_menu_size, R.string.opt_menu_size_hint, sizes, curSize, i -> {
+            a.prefs.edit().putFloat("menu_size", MainActivity.MENU_SIZES[i]).apply();
+            // laid out again at the new size, where it was
+            rows.post(() -> {
+                dismiss();
+                new OptionsMenu(a).show();
+            });
+        });
     }
 
     private void mods() {
+        submenu(R.string.opt_ptbr, R.string.opt_ptbr_hint, a.ptbrInstalled() ? a.getString(a.ptbrEnabled() ? R.string.opt_on : R.string.opt_off)
+                : a.getString(R.string.ptbr_not_installed), () -> openPage(this::ptbrPage));
         submenu(R.string.opt_cheats, R.string.opt_cheats_hint, "", () -> openPage(this::cheatsPage));
         int[] labels = {R.string.opt_mod_direct_camera, R.string.opt_mod_first_person, R.string.opt_mod_climb,
                         R.string.opt_mod_quick_doors, R.string.opt_mod_fast_scenes, R.string.opt_mod_ff_cutscenes,
@@ -607,6 +666,10 @@ final class OptionsMenu extends Dialog {
             dismiss();
             a.editTouchLayout();
         });
+        toggle(R.string.opt_camera_stick, R.string.opt_camera_stick_hint, a.prefs.getBoolean("camera_stick", true), on -> {
+            a.prefs.edit().putBoolean("camera_stick", on).apply();
+            a.applyControlsAppearance();
+        });
         String[] sens = new String[MainActivity.CAMERA_SENSITIVITIES.length];
         int curSens = 2;
         for (int i = 0; i < sens.length; i++) {
@@ -628,7 +691,8 @@ final class OptionsMenu extends Dialog {
         });
         String[] kinds = {a.getString(R.string.controller_gamepad), a.getString(R.string.controller_pro)};
         choice(R.string.opt_controller, 0, kinds, Native.getOption("pro_controller") != 0 ? 1 : 0, i -> a.setBool("pro_controller", i == 1));
-        toggle(R.string.opt_motion, R.string.opt_motion_hint, a.prefs.getBoolean("motion", true), a::setMotion);
+        toggleText(a.getString(R.string.opt_motion), a.getString(R.string.opt_motion_hint) + "\n" + a.motionSourceLabel(),
+                a.prefs.getBoolean("motion", true), a::setMotion);
         if (a.prefs.getBoolean("motion", true))
             submenu(R.string.opt_gyro_recalibrate, R.string.opt_gyro_recalibrate_hint, "", a::recalibrateGyro);
         toggle(R.string.opt_rumble, R.string.opt_rumble_hint, a.prefs.getBoolean("rumble", true), a::setRumble);
@@ -647,13 +711,13 @@ final class OptionsMenu extends Dialog {
             final int n = i;
             LinearLayout r = rowText(names[i], null);
             TextView v = new TextView(getContext());
-            v.setText(InputMapper.buttonName(m.map[i]) + "  ›");
+            v.setText(InputMapper.buttonName(getContext(), m.map[i]) + "  ›");
             v.setTextColor(INK);
             v.setTextSize(16);
             v.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
             r.addView(v, new LinearLayout.LayoutParams(-2, -2));
             r.setOnClickListener(x -> new GameDialog(getContext()).title(names[n])
-                    .message(a.getString(R.string.opt_buttons_press, names[n], InputMapper.buttonName(m.map[n])))
+                    .message(a.getString(R.string.opt_buttons_press, names[n], InputMapper.buttonName(getContext(), m.map[n])))
                     .button(R.string.opt_cancel, null)
                     .captureButton(code -> { a.assignButton(n, code); fill(); })
                     .show());
@@ -709,14 +773,22 @@ final class OptionsMenu extends Dialog {
     }
 
     private void toggle(int label, int hint, boolean on, BoolSetter set) {
-        LinearLayout r = row(label, hint);
+        toggleText(a.getString(label), hint != 0 ? a.getString(hint) : null, on, set);
+    }
+
+    private void toggleText(String label, String hint, boolean on, BoolSetter set) {
+        LinearLayout r = rowText(label, hint);
         TextView pill = GameUi.pill(getContext(), on);
         r.addView(pill, new LinearLayout.LayoutParams(px(92), px(38)));
         r.setOnClickListener(v -> { set.set(!on); fill(); });
     }
 
     private void choice(int label, int hint, String[] values, int cur, IntSetter set) {
-        LinearLayout r = row(label, hint);
+        choice(a.getString(label), hint != 0 ? a.getString(hint) : null, values, cur, set);
+    }
+
+    private void choice(String label, String hint, String[] values, int cur, IntSetter set) {
+        LinearLayout r = rowText(label, hint);
         int idx = Math.max(0, Math.min(values.length - 1, cur));
         TextView prev = arrow("◀"), next = arrow("▶");
         TextView value = new TextView(getContext());

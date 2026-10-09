@@ -31,13 +31,14 @@ final class ControlsView extends View {
         void onLayoutSaved(String layout);
     }
 
-    private static final int K_STICK = 0, K_BUTTON = 1, K_MACRO = 3, K_MENU = 4, K_EDIT = 5;
+    private static final int K_STICK = 0, K_BUTTON = 1, K_MACRO = 3, K_MENU = 4, K_EDIT = 5, K_CAMSTICK = 6, K_SKIP = 7;
     // combat moves (K_MACRO controls' bit field)
     private static final int M_JUMP = 1, M_VERTICAL = 2, M_SPIN = 3, M_DODGE = 4;
 
     // game state from Native.hudState(): {flags, A action, B action, ZR action, X item, Y item, R item}
     static final int HUD_KNOWN = 1, HUD_ON_BOAT = 2, HUD_SWORD_OUT = 4, HUD_TARGETING = 8, HUD_FIRST_PERSON = 16,
-            HUD_HAS_SWORD = 32, HUD_HAS_SHIELD = 64, HUD_HAS_BATON = 128, HUD_HAS_GRAPPLE = 256, HUD_HAS_BOMBS = 512;
+            HUD_HAS_SWORD = 32, HUD_HAS_SHIELD = 64, HUD_HAS_BATON = 128, HUD_HAS_GRAPPLE = 256, HUD_HAS_BOMBS = 512,
+            HUD_CUTSCENE = 1024;  // a scene the game lets + skip: only the Skip button shows, a tap elsewhere is A
     private static final int HUD_FLAGS = 0, HUD_A = 1, HUD_B = 2, HUD_ZR = 3, HUD_X = 4, HUD_Y = 5, HUD_R = 6;
 
     private static final class Ctl {
@@ -68,7 +69,7 @@ final class ControlsView extends View {
         }
         boolean custom() { return !Float.isNaN(fx); }
         boolean removed;  // taken off the screen in the layout editor
-        boolean removable() { return kind != K_MENU && kind != K_EDIT; }  // the way back to the menus stays
+        boolean removable() { return kind != K_MENU && kind != K_EDIT && kind != K_SKIP; }  // the way back to the menus stays
     }
 
     private final Listener listener;
@@ -89,6 +90,7 @@ final class ControlsView extends View {
 
     // settings
     private float cameraSensitivity = 1f;
+    private boolean cameraStick = true;
     private boolean haptics = true;
     private int combatMode;  // 0 auto (with the sword out or a target locked), 1 always, 2 never
 
@@ -102,6 +104,8 @@ final class ControlsView extends View {
         text.setFakeBoldText(true);
         final int T = TouchIcons.TEAL, B = TouchIcons.BONE, O = TouchIcons.ORANGE, S = TouchIcons.SKY;
         add(new Ctl("stick", K_STICK, 0, S, "", "stick_base", 0, 2.0f, 1, -1.9f, 2.2f));
+        // the camera stick (Controls > Camera stick): a fixed right stick, left of the action buttons
+        add(new Ctl("camstick", K_CAMSTICK, 0, S, "", "stick_base", 1, -6.6f, 1, -1.9f, 2.0f));
         // the D-pad as four separate buttons: baton, cannon, salvage hook, down
         add(new Ctl("dpad_up", K_BUTTON, Native.UP, T, "↑", "dpad_up_wind_waker", 0, 1.7f, 0, 2.1f, 0.85f));
         add(new Ctl("dpad_left", K_BUTTON, Native.LEFT, T, "←", "dpad_left_cannon", 0, 1.05f, 0, 2.75f, 0.85f));
@@ -120,6 +124,8 @@ final class ControlsView extends View {
         add(new Ctl("spin", K_MACRO, M_SPIN, O, "⟳", "combat_spin_attack", 1, -4.9f, 1, -2.1f, 0.95f));
         add(new Ctl("dodge", K_MACRO, M_DODGE, O, "⇆", "combat_dodge", 1, -4.4f, 1, -0.9f, 0.95f));
         add(new Ctl("pause", K_BUTTON, Native.PLUS, B, "❚❚", "btn_pause", 0.5f, -0.9f, 1, -0.5f, 0.75f));
+        // during skippable scenes the only control: + twice (the game asks "Skip?" on the first)
+        add(new Ctl("skip", K_SKIP, Native.PLUS, B, "", "", 1, -1.6f, 1, -0.9f, 1.0f));
         add(new Ctl("menu", K_MENU, 0, B, "≡", "btn_menu", 0.5f, 0, 1, -0.5f, 0.75f));
         add(new Ctl("edit", K_EDIT, 0, B, "✎", "btn_layout_edit", 0.5f, 0.9f, 1, -0.5f, 0.75f));
     }
@@ -379,7 +385,9 @@ final class ControlsView extends View {
     }
 
     /** camera speed for swipes (1 = default), vibration on presses, when the combat buttons show */
-    void setTouchOptions(float cameraSensitivity, boolean haptics, int combatMode) {
+    void setTouchOptions(float cameraSensitivity, boolean haptics, int combatMode, boolean cameraStick) {
+        this.cameraStick = cameraStick;
+        if (!cameraStick) camStickPointer = -1;
         this.cameraSensitivity = cameraSensitivity;
         this.haptics = haptics;
         this.combatMode = combatMode;
@@ -477,8 +485,13 @@ final class ControlsView extends View {
         invalidate();
     }
 
+    private boolean cutscene() { return hudFlag(HUD_CUTSCENE) && !editMode; }
+
     private boolean shown(Ctl c) {
         if (c.removed) return false;
+        if (c.kind == K_CAMSTICK && !cameraStick) return false;
+        if (cutscene()) return (controlsVisible && c.kind == K_SKIP) || (c.kind == K_MENU && menuShown);
+        if (c.kind == K_SKIP) return editMode;
         if (editMode) return true;
         if (c.kind == K_MENU || c.kind == K_EDIT) return menuShown;
         if (!controlsVisible) return false;
@@ -506,6 +519,9 @@ final class ControlsView extends View {
     // pinch on the camera side (a second finger): zooms the camera in and out (Native "camera_zoom")
     private int pinchPointer = -1;
     private float pinchX, pinchY, pinchStartDist, pinchStartZoom, cameraZoom = 1f;
+    // the camera stick: the finger's offset from its centre
+    private int camStickPointer = -1;
+    private float camStickX, camStickY;
     // double tap on the camera side: a short ZL (centres the camera behind Link)
     private int pulseBits;
     // combat move in progress
@@ -523,8 +539,8 @@ final class ControlsView extends View {
         return b;
     }
 
-    float stickX(int i) { return i == 0 ? (macroStick ? macroSx : stickX) : camX; }
-    float stickY(int i) { return i == 0 ? (macroStick ? macroSy : stickY) : camY; }
+    float stickX(int i) { return i == 0 ? (macroStick ? macroSx : stickX) : camStickPointer >= 0 ? camStickX : camX; }
+    float stickY(int i) { return i == 0 ? (macroStick ? macroSy : stickY) : camStickPointer >= 0 ? camStickY : camY; }
 
     private void changed() {
         listener.onControlsChanged();
@@ -624,6 +640,14 @@ final class ControlsView extends View {
         macroSy = s[4] / 1000f;
         changed();
         postDelayed(macroTick, s[0]);
+    }
+
+    // a fixed button sequence (steps as in startMacro), if none runs
+    private void startSequence(int[][] steps) {
+        if (macro != null) return;
+        macro = steps;
+        macroStep = 0;
+        applyMacroStep();
     }
 
     private void startMacro(int move) {
@@ -747,6 +771,20 @@ final class ControlsView extends View {
         stickY = clamp(-dy / r);
     }
 
+    // a fixed stick: the offset from its centre, full past 80% of its radius, times the camera speed
+    private void updateCamStick(float x, float y) {
+        Ctl s = byId.get("camstick");
+        float r = s.r * 0.8f;
+        float dx = (x - s.cx) / r, dy = -(y - s.cy) / r, len = (float) Math.hypot(dx, dy);
+        if (len > 1f) {
+            dx /= len;
+            dy /= len;
+        }
+        float dead = 0.12f, k = len < dead ? 0f : Math.min(1f, (Math.min(len, 1f) - dead) / (1f - dead)) / Math.max(1e-4f, Math.min(len, 1f));
+        camStickX = clamp(dx * k * cameraSensitivity);
+        camStickY = clamp(dy * k * cameraSensitivity);
+    }
+
     private void release(Ctl c) {
         c.pressed = false;
     }
@@ -756,8 +794,8 @@ final class ControlsView extends View {
         pointers.clear();
         if (drcPointer >= 0) Native.setTouch(false, 0, 0);
         drcPointer = -1;
-        stickPointer = camPointer = pinchPointer = -1;
-        stickX = stickY = camX = camY = 0;
+        stickPointer = camPointer = pinchPointer = camStickPointer = -1;
+        stickX = stickY = camX = camY = camStickX = camStickY = 0;
         removeCallbacks(macroTick);
         macro = null;
         macroStep = -1;
@@ -795,6 +833,22 @@ final class ControlsView extends View {
                         }
                         return true;
                     }
+                    if (c.kind == K_SKIP) {
+                        buzz();
+                        startSequence(new int[][] {{120, Native.PLUS, 0, 0, 0}, {450, 0, 0, 0, 0}, {120, Native.PLUS, 0, 0, 0}, {60, 0, 0, 0, 0}});
+                        c.pressed = true;
+                        pointers.put(id, c);
+                        changed = true;
+                        break;
+                    }
+                    if (c.kind == K_CAMSTICK) {
+                        if (camStickPointer < 0) {
+                            camStickPointer = id;
+                            updateCamStick(x, y);
+                            changed = true;
+                        }
+                        break;
+                    }
                     pointers.put(id, c);
                     if (c.kind == K_MACRO) {
                         buzz();
@@ -805,6 +859,10 @@ final class ControlsView extends View {
                         buzz();
                     }
                     changed = true;
+                } else if (cutscene() && controlsVisible) {
+                    // a tap anywhere else during a scene: A (advances its text)
+                    startSequence(new int[][] {{110, Native.A, 0, 0, 0}});
+                    break;
                 } else if (drcPointer < 0 && inDrc(x, y)) {
                     drcPointer = id;
                     touchDrc(true, x, y);
@@ -839,6 +897,11 @@ final class ControlsView extends View {
                     }
                     if (id == stickPointer) {
                         updateStick(x, y);
+                        changed = true;
+                        continue;
+                    }
+                    if (id == camStickPointer) {
+                        updateCamStick(x, y);
                         changed = true;
                         continue;
                     }
@@ -896,6 +959,11 @@ final class ControlsView extends View {
                 if (id == stickPointer) {
                     stickPointer = -1;
                     stickX = stickY = 0;
+                    changed = true;
+                }
+                if (id == camStickPointer) {
+                    camStickPointer = -1;
+                    camStickX = camStickY = 0;
                     changed = true;
                 }
                 if (id == pinchPointer) {
@@ -1100,6 +1168,8 @@ final class ControlsView extends View {
             if (!shown(c)) continue;
             switch (c.kind) {
                 case K_STICK: drawStick(canvas, c, a); break;
+                case K_CAMSTICK: drawCamStick(canvas, c, a); break;
+                case K_SKIP: drawSkip(canvas, c, editMode ? a : Math.max(a, 200)); break;
                 default: drawButton(canvas, c, a); break;
             }
             if (editMode && c == editSel) {
@@ -1166,6 +1236,44 @@ final class ControlsView extends View {
         }
         float kx = bx + stickX * c.r * 0.8f, ky = by - stickY * c.r * 0.8f;
         icons.draw(canvas, "stick_knob", TouchIcons.BONE, "", kx, ky, c.r * 0.42f, alpha, false);
+    }
+
+    // a rounded "Skip ▶▶" plate
+    private void drawSkip(Canvas canvas, Ctl c, int a) {
+        float w = c.r * 2.6f, h = c.r * 1.05f;
+        tmp.set(c.cx - w / 2, c.cy - h / 2, c.cx + w / 2, c.cy + h / 2);
+        fill.setColor(c.pressed ? 0xFF2E7DB8 : 0xFF1B4F72);
+        fill.setAlpha(a * 3 / 4);
+        canvas.drawRoundRect(tmp, h / 2, h / 2, fill);
+        stroke.setColor(0xFFFFFFFF);
+        stroke.setAlpha(a);
+        canvas.drawRoundRect(tmp, h / 2, h / 2, stroke);
+        text.setColor(0xFFFFFFFF);
+        text.setAlpha(a);
+        float ts = text.getTextSize();
+        text.setTextSize(h * 0.42f);
+        canvas.drawText(getContext().getString(R.string.touch_skip) + "  ▶▶", c.cx, c.cy + h * 0.15f, text);
+        text.setTextSize(ts);
+    }
+
+    private void drawCamStick(Canvas canvas, Ctl c, int a) {
+        boolean active = camStickPointer >= 0;
+        int alpha = active ? a : a * 2 / 3;
+        if (icons.get("stick_base") != null) icons.draw(canvas, "stick_base", 0, null, c.cx, c.cy, c.r, alpha, false);
+        else {
+            fill.setColor(TouchIcons.SKY);
+            fill.setAlpha(alpha / 3);
+            canvas.drawCircle(c.cx, c.cy, c.r, fill);
+            stroke.setColor(TouchIcons.NAVY);
+            stroke.setAlpha(alpha);
+            canvas.drawCircle(c.cx, c.cy, c.r, stroke);
+        }
+        float sx = cameraSensitivity > 0 ? camStickX / cameraSensitivity : 0, sy = cameraSensitivity > 0 ? camStickY / cameraSensitivity : 0;
+        float kx = c.cx + clamp(sx) * c.r * 0.8f, ky = c.cy - clamp(sy) * c.r * 0.8f;
+        icons.draw(canvas, "stick_knob", TouchIcons.BONE, "", kx, ky, c.r * 0.42f, alpha, false);
+        text.setColor(0xFFFFFFFF);
+        text.setAlpha(alpha);
+        canvas.drawText("◎", c.cx, c.cy - c.r * 1.05f, text);
     }
 
     private void drawGrid(Canvas canvas) {

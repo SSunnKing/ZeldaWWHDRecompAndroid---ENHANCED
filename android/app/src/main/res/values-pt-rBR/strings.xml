@@ -1,0 +1,419 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="setup_text">Os arquivos do jogo não foram encontrados ou não correspondem a esta versão.\n\nEste app contém apenas o código recompilado a partir da sua própria cópia do jogo; ele precisa dos arquivos extraídos do mesmo dump. Extraia-os num computador (veja README.md: tools/wudextract.py) e copie a pasta resultante (com code/, content/ e meta/ dentro) para:\n\n%1$s\n\nPor exemplo: adb push game /sdcard/Android/data/org.wwhdrecomp.app/files/\n\nProblema: %2$s</string>
+    <string name="touch_skip">Pular</string>
+    <string name="opt_bloom">Intensidade do bloom</string>
+    <string name="opt_bloom_hint">Brilho em volta das áreas claras. 100% é igual ao jogo original</string>
+    <string name="opt_mod_ff_cutscenes">Acelerar cutscenes</string>
+    <string name="opt_mod_ff_dialogues">Acelerar diálogos</string>
+    <string name="opt_mod_ff_hint">Mais rápido (até 4×, o quanto este aparelho conseguir desenhar) enquanto o ZR (R2) estiver apertado; as caixas de texto ainda esperam o seu botão</string>
+    <string name="crash_title">O jogo fechou inesperadamente</string>
+    <string name="crash_text">Um registro do travamento foi salvo. Se você relatar o problema (por exemplo como uma issue no GitHub), anexe-o. Ele mostra onde o jogo travou, a versão do app, a versão do jogo, o modelo do seu aparelho e as configurações em uso. Ele não contém dados pessoais.</string>
+    <string name="crash_share">Compartilhar registro do travamento</string>
+    <string name="crash_share_all">Compartilhar registros de travamento</string>
+    <string name="crash_not_now">Agora não</string>
+    <string name="crash_subject">Registro de travamento do Wind Waker HD</string>
+    <string name="motion_source_pad">Agora: os sensores de %1$s</string>
+    <string name="motion_source_device">Agora: os sensores deste aparelho</string>
+    <string name="motion_source_device_no_pad">Agora: os sensores deste aparelho (o controle em uso não informa nenhum)</string>
+    <string name="motion_source_off">Agora: desligado</string>
+    <string name="gpu_safe_title">Modo seguro da GPU</string>
+    <string name="restart_needed">Isso vale após reiniciar.</string>
+    <string name="gpu_safe_notice">O jogo fechou da última vez por causa do driver da GPU (%2$s). Agora ele roda no modo seguro da GPU, nível %1$d, que evita recursos que alguns drivers tratam mal. Você pode mudar isso em Gráficos › Modo seguro da GPU.</string>
+    <string name="opt_gpu_safe">Modo seguro da GPU</string>
+    <string name="opt_gpu_safe_hint">Liga sozinho depois de um travamento do driver da GPU; evita recursos que alguns drivers tratam mal. Vale após reiniciar</string>
+    <string-array name="gpu_safe_modes">
+        <item>Desligado</item>
+        <item>Básico</item>
+        <item>Máximo</item>
+    </string-array>
+    <string name="opt_ptbr">Tradução Português (Brasil)</string>
+    <string name="opt_ptbr_hint">Os textos do jogo em português brasileiro (tradução de fãs da Triforce-Heroes)</string>
+    <string name="ptbr_not_installed">não instalada</string>
+    <string name="ptbr_about">Joga com a tradução de fãs para português brasileiro feita pela Triforce-Heroes (triforce-heroes.com.br). A tradução substitui o texto em inglês, então ativá-la muda o idioma do jogo para inglês. Se ela não estiver instalada, escolha a pasta dela (a versão para Cemu ou para console, a pasta com o rules.txt).</string>
+    <string name="ptbr_install">Instalar a tradução…</string>
+    <string name="ptbr_install_hint">Escolha a pasta da tradução</string>
+    <string name="ptbr_install_other">Instalar outra versão…</string>
+    <string name="ptbr_installed">Instalada: %1$s</string>
+    <string name="ptbr_toggle_hint">Vale após reiniciar</string>
+    <string name="ptbr_remove">Remover a tradução</string>
+    <string name="ptbr_remove_confirm">Apagar os arquivos da tradução instalada? Você pode instalá-los de novo depois.</string>
+    <string name="ptbr_installing">Instalando a tradução…</string>
+    <string name="ptbr_failed">Não foi possível instalar a tradução: %1$s</string>
+    <string name="ptbr_not_found">Nenhum arquivo de tradução (permanent_2d_*.pack) nessa pasta.</string>
+    <string name="ptbr_on_restart">A tradução está ativada e o idioma do jogo é inglês. Reinicie o jogo para jogar em português.</string>
+    <string name="ptbr_off_restart">A tradução está desativada. Reinicie o jogo para aplicar.</string>
+    <string name="opt_camera_stick">Analógico da câmera</string>
+    <string name="opt_camera_stick_hint">Um analógico à direita que gira a câmera (mova-o em Editar controles de toque). Deslizar o dedo no lado direito continua funcionando</string>
+    <string name="opt_hud">Layout do HUD</string>
+    <string name="opt_hud_hint">Mova, redimensione ou esconda os corações, rupias, botões e o resto do HUD do jogo</string>
+    <string name="hud_hidden">oculto</string>
+    <string name="hud_hide_all">Ocultar HUD</string>
+    <string name="hud_show_all">Mostrar HUD</string>
+    <string name="hud_edit_hint">Toque numa parte · arraste para mover · alça no canto ou pinça para redimensionar · 🗑 oculta, + mostra · ↺ restaura · ✓ ou Voltar para terminar</string>
+    <string-array name="hud_parts">
+        <item>Corações e magia</item>
+        <item>Rupias</item>
+        <item>Botões de itens</item>
+        <item>Chaves pequenas</item>
+        <item>Bússola do vento e relógio</item>
+    </string-array>
+    <string name="opt_menu_size">Tamanho do menu</string>
+    <string name="opt_menu_size_hint">Os menus se ajustam à tela sozinhos; isto os deixa menores ou maiores.</string>
+    <string name="opt_app_language">Idioma do app</string>
+    <string name="opt_app_language_hint">Os menus e mensagens deste app (o texto do jogo é em Jogo › Idioma do jogo ou na tradução em Mods)</string>
+    <string-array name="app_languages">
+        <item>Do sistema</item>
+        <item>English</item>
+        <item>Português (Brasil)</item>
+    </string-array>
+    <string name="pad_face_bottom">Botão de baixo (A / X do PlayStation)</string>
+    <string name="pad_face_right">Botão da direita (B / Círculo)</string>
+    <string name="pad_face_left">Botão da esquerda (X / Quadrado)</string>
+    <string name="pad_face_top">Botão de cima (Y / Triângulo)</string>
+    <string name="setup_retry">Verificar de novo</string>
+    <string name="setup_welcome">Bem-vindo!\n\nEste app não contém arquivos do jogo. Ele roda a sua própria cópia de The Legend of Zelda: The Wind Waker HD para Wii U (versão americana, europeia ou japonesa).\n\nColoque estes três arquivos numa pasta deste aparelho e escolha essa pasta:\n•  a sua imagem de disco (.wux ou .wud)\n•  a chave do disco (o nome da imagem com .key)\n•  a chave comum do console (common.key)\n\nOu coloque só o seu arquivo Wii U (.wua, criado pelo Cemu) na pasta: ele não precisa de chaves.\n\nO app então extrai os arquivos do jogo (cerca de 1,7 GB) e prepara o código do jogo para este aparelho. Isso acontece uma vez só e demora um pouco, dependendo do processador do aparelho.</string>
+    <string name="setup_problem">Os arquivos do jogo encontrados não funcionam: %1$s</string>
+    <string name="setup_extract">Extrair da imagem de disco ou .wua…</string>
+    <string name="extract_missing">Escolha a pasta com o seu arquivo Wii U (.wua), ou com a imagem de disco, a chave do disco e a chave comum do console:\n\n%1$s a imagem (.wux ou .wud)\n%2$s a chave do disco (o nome da imagem com .key)\n%3$s common.key</string>
+    <string name="extract_bad_key">Um arquivo de chave deve ter 16 bytes ou 32 dígitos hexadecimais.</string>
+    <string name="extract_running">Extraindo os arquivos do jogo…</string>
+    <string name="extract_detail">%1$d de %2$d MB (%3$.0f MB/s)</string>
+    <string name="extract_detail_short">%1$d de %2$d MB</string>
+    <string name="work_channel">Preparação do jogo</string>
+    <string name="work_extracting">Extraindo os arquivos do jogo</string>
+    <string name="work_compiling">Preparando o código do jogo</string>
+    <string name="space_title">Espaço livre insuficiente</string>
+    <string name="space_text">Esta etapa precisa de cerca de %1$d MB livres; há %2$d MB livres. Libere espaço e tente de novo.</string>
+    <string name="extract_failed">A extração falhou: %1$s</string>
+    <string name="compile_running">Preparando o código do jogo para este aparelho…\n\nIsso acontece uma vez só e demora um pouco, dependendo do processador: alguns minutos em aparelhos rápidos, mais nos lentos. Você pode sair do app enquanto isso: ele continua em segundo plano (veja a notificação) e, se for fechado, continua de onde parou.</string>
+    <string name="compile_detail">%1$d de %2$d partes (%3$d:%4$02d)</string>
+    <string name="compile_failed">A preparação do código do jogo falhou: %1$s</string>
+    <string name="menu_about">Sobre e licenças</string>
+    <string name="compile_continue">Continuar</string>
+    <string name="compile_stopping">Parando…</string>
+    <string name="compile_cancelled">A preparação do código do jogo foi cancelada. Ela continua de onde parou quando você iniciar de novo.</string>
+
+    <string name="menu_resolution">Resolução: %1$s</string>
+    <string name="res_title">Resolução de renderização</string>
+    <string name="res_original">Original (%1$s)</string>
+    <string name="res_scaled_up">%1$s× (%2$s, mais carga na GPU)</string>
+    <string name="res_scaled_down">%1$s× (%2$s, menos carga na GPU)</string>
+    <string name="res_restart">A nova resolução vale quando o jogo reiniciar. O progresso desde o último save é perdido.</string>
+    <string name="res_restart_now">Reiniciar agora</string>
+    <string name="res_restart_later">Depois</string>
+    <string name="menu_fg">Geração de quadros: %1$s</string>
+    <string name="menu_states">Save states…</string>
+    <string name="states_title">Save states</string>
+    <string name="state_slot">Espaço %1$d %2$s</string>
+    <string name="state_empty">— vazio</string>
+    <string name="state_incompatible">%1$s (de outra versão, não pode ser carregado)</string>
+    <string name="state_save">Salvar aqui</string>
+    <string name="state_load">Carregar</string>
+    <string name="state_overwrite">Substituir o estado do espaço %1$d?</string>
+    <string name="menu_mods">Mods de jogabilidade…</string>
+    <string name="menu_aspect">Proporção: %1$s</string>
+    <string name="aspect_title">Proporção da imagem</string>
+    <string-array name="aspect_modes">
+        <item>Original 16:9 (barras)</item>
+        <item>Esticar na tela</item>
+        <item>Preencher a tela (corta as bordas)</item>
+    </string-array>
+    <string name="menu_backup">Importar / exportar saves…</string>
+    <string name="backup_title">Importar / exportar saves</string>
+    <string name="backup_export">Exportar para uma pasta…</string>
+    <string name="backup_import">Importar de uma pasta…</string>
+    <string name="backup_export_title">Exportar</string>
+    <string name="backup_game_save">Save do jogo</string>
+    <string name="backup_states">Save states (%1$d MB)</string>
+    <string name="backup_choose_folder">Escolher pasta…</string>
+    <string name="backup_exporting">Exportando…</string>
+    <string name="backup_exported">Exportado para a pasta \"%1$s\".</string>
+    <string name="backup_scanning">Procurando saves…</string>
+    <string name="backup_nothing">Nenhum save do jogo (cking.sav) ou save state (slot1–5.bin) nesta pasta.</string>
+    <string name="backup_import_title">Importar (substitui o que existe)</string>
+    <string name="backup_import_save">Save do jogo (de %1$s)</string>
+    <string name="backup_import_states">Save states: espaço %1$s</string>
+    <string name="backup_import_go">Importar</string>
+    <string name="backup_importing">Importando…</string>
+    <string name="backup_imported_states">Save states importados. Estados de outra versão do app não podem ser carregados.</string>
+    <string name="backup_imported_save">Save do jogo importado. O jogo reinicia agora para usá-lo (o save anterior fica em save-before-import).</string>
+    <string name="backup_failed">Falhou: %1$s</string>
+    <string name="mods_title">Mods de jogabilidade</string>
+    <string name="mod_direct_camera">Câmera direta no analógico direito (sem suavização): %1$s</string>
+    <string name="mod_camera_speed">Velocidade da câmera direta: %1$.1f×</string>
+    <string name="mod_speed_title">Velocidade da câmera direta</string>
+    <string name="mod_speed_item">%1$.1f×</string>
+    <string name="mod_first_person">Primeira pessoa no R3: %1$s</string>
+    <string name="mod_climb">Escalar qualquer parede (roda de fôlego; B ou A solta): %1$s</string>
+    <string name="mod_quick_doors">Portas rápidas (4× mais rápido): %1$s</string>
+    <string name="mod_fast_scenes">Troca de cenário rápida (4× mais rápido): %1$s</string>
+    <string name="fg_title">Geração de quadros (Lossless Scaling)</string>
+    <string name="fg_about">Adiciona quadros interpolados entre os quadros de 30 fps do jogo, usando a geração de quadros do Lossless Scaling. Precisa da sua própria cópia do Lossless.dll da sua instalação do Lossless Scaling (Steam: steamapps/common/Lossless Scaling). Copie-o para este aparelho e escolha-o aqui. Os quadros gerados mostram o jogo cerca de um quadro depois.</string>
+    <string name="fg_no_dll">precisa do Lossless.dll</string>
+    <string name="fg_choose_dll">Escolher Lossless.dll…</string>
+    <string name="fg_replace_dll">Escolher outro Lossless.dll…</string>
+    <string name="fg_remove_dll">Remover Lossless.dll</string>
+    <string name="fg_enabled">Geração de quadros: %1$s</string>
+    <string name="fg_multiplier">Multiplicador: ×%1$d (%2$d fps)</string>
+    <string name="fg_multiplier_title">Quadros por quadro do jogo</string>
+    <string name="fg_multiplier_item">×%1$d (%2$d fps)</string>
+    <string name="fg_mode">Rede: %1$s</string>
+    <string name="fg_performance">Desempenho</string>
+    <string name="fg_quality">Qualidade (mais carga na GPU)</string>
+    <string name="fg_flow_scale">Escala do fluxo: %1$d%%</string>
+    <string name="fg_flow_title">Resolução da estimativa de movimento</string>
+    <string name="fg_flow_item">%1$d%%</string>
+    <string name="fg_ui_detection">Detecção de interface: %1$s</string>
+    <string name="fg_bad_dll">Este arquivo não pode ser usado: %1$s</string>
+    <string name="fg_dll_untested">O Lossless.dll está instalado e a geração de quadros está ligada, mas esta versão dos shaders dele não foi testada com o app: os quadros gerados podem ficar errados. Se ficarem, escolha outro Lossless.dll (o README cita a versão testada).</string>
+    <string name="fg_dll_tested_hint">Instalado: uma versão testada</string>
+    <string name="fg_dll_untested_hint">Instalado: uma versão não testada (os quadros podem ficar errados)</string>
+    <string name="fg_not_working">não funciona</string>
+    <string name="fg_error">A geração de quadros não está funcionando: %1$s</string>
+    <string name="fg_dll_ok">O Lossless.dll está pronto e a geração de quadros está ligada.</string>
+    <string name="menu_layout">Layout da tela: %1$s</string>
+    <string name="menu_controls_hide">Esconder controles de toque</string>
+    <string name="menu_controls_show">Mostrar controles de toque</string>
+    <string name="menu_controls_size">Tamanho dos controles de toque</string>
+    <string name="menu_controller">Os controles agem como: %1$s</string>
+    <string name="controller_gamepad">Wii U GamePad</string>
+    <string name="controller_pro">Wii U Pro Controller</string>
+    <string name="menu_ao">Oclusão de ambiente: %1$s</string>
+    <string name="menu_ao_hires">Profundidade da oclusão em tamanho cheio: %1$s</string>
+    <string name="menu_aniso">Filtragem anisotrópica 16x: %1$s</string>
+    <string name="menu_perf_hud">Painel de desempenho (FPS, carga, temperaturas): %1$s…</string>
+    <string name="perf_title">Painel de desempenho</string>
+    <string name="perf_show">Mostrar o painel</string>
+    <string name="perf_fps">Taxa de quadros</string>
+    <string name="perf_frame">Tempo de quadro</string>
+    <string name="perf_cpu">Carga da CPU (este app)</string>
+    <string name="perf_gpu">Carga da GPU (e tempo da geração de quadros)</string>
+    <string name="perf_temp_cpu">Temperatura da CPU</string>
+    <string name="perf_temp_gpu">Temperatura da GPU</string>
+    <string name="perf_temp_bat">Temperatura da bateria</string>
+    <string name="perf_settings">Configurações (resolução, efeitos, driver da GPU)</string>
+    <string name="perf_done">Pronto</string>
+    <string name="perf_move">Mover painel</string>
+    <string name="perf_reset">Restaurar posição</string>
+    <string name="perf_move_hint">Arraste para mover · toque em outro lugar para terminar</string>
+    <string name="opt_saves">Saves</string>
+    <string name="opt_slot">Save state %1$d</string>
+    <string name="opt_slot_empty">Vazio</string>
+    <string name="opt_slot_incompatible">%1$s · de outra versão, não pode ser carregado</string>
+    <string name="opt_slot_save">Salvar</string>
+    <string name="opt_slot_load">Carregar</string>
+    <string name="opt_export">Exportar saves</string>
+    <string name="opt_export_hint">Copia o save do jogo e os save states para uma pasta</string>
+    <string name="opt_import">Importar saves</string>
+    <string name="opt_import_hint">Restaura de uma pasta; importar um save do jogo reinicia o jogo</string>
+    <string name="opt_graphics">Gráficos</string>
+    <string name="opt_mods">Mods</string>
+    <string name="opt_controls">Controles</string>
+    <string name="opt_back">Voltar</string>
+    <string name="opt_ok">OK</string>
+    <string name="opt_cancel">Cancelar</string>
+    <string name="opt_on">SIM</string>
+    <string name="opt_off">NÃO</string>
+    <string name="opt_pad_hint">Controle: segure Select ou aperte Home para abrir e fechar · L / R trocam de aba · D-pad navega e muda valores · botão da direita seleciona · botão de baixo volta</string>
+    <string name="lang_restart">O novo idioma vale quando o jogo reiniciar. O progresso desde o último save é perdido.</string>
+    <string name="opt_fps">Taxa de quadros</string>
+    <string name="opt_fps_hint">60 fps mantém o jogo em velocidade normal de 30 a 60 fps, descartando quadros gerados atrasados. O adaptativo passa para 30 estáveis quando o aparelho não aguenta 60 e tenta de novo sozinho.</string>
+    <string-array name="fps_modes">
+        <item>30 fps</item>
+        <item>60 fps</item>
+        <item>60 fps (adaptativo)</item>
+        <item>True 60 (experimental)</item>
+    </string-array>
+    <string name="fps_40">40 fps (tela de 120 Hz)</string>
+    <string name="opt_layout_edit">Editar controles de toque</string>
+    <string name="opt_layout_edit_hint">Mova e redimensione cada controle numa grade (também pelo botão ✎ ao lado do ≡)</string>
+    <string name="layout_edit_hint">Arraste para mover · alça no canto ou pinça para redimensionar · 🗑 remove o controle selecionado · + traz de volta os removidos · Voltar cancela</string>
+    <string name="layout_add_title">Toque num controle para trazê-lo de volta</string>
+    <string name="opt_camera_sensitivity">Velocidade da câmera ao deslizar</string>
+    <string name="opt_camera_sensitivity_hint">Deslize no lado direito da tela para girar a câmera; toque duas vezes ali para centralizá-la</string>
+    <string name="opt_combat_buttons">Botões de combate</string>
+    <string name="opt_combat_buttons_hint">Ataque com pulo, golpe vertical, giro e esquiva com um toque</string>
+    <string-array name="combat_buttons">
+        <item>Com espada</item>
+        <item>Sempre</item>
+        <item>Escondidos</item>
+    </string-array>
+    <string name="opt_haptics">Vibrar ao tocar</string>
+    <string name="opt_cheats">Trapaças</string>
+    <string name="opt_cheats_hint">Itens, espada e escudo, corações, vida infinita…</string>
+    <string name="cheat_note">As trapaças alteram o save carregado; elas ficam depois que o jogo é salvo. O próprio jogo tira a espada na Forsaken Fortress e o arco na Tower of the Gods.</string>
+    <string name="cheat_apply">Aplicar</string>
+    <string name="cheat_done">Trapaça aplicada</string>
+    <string name="cheat_items">Todos os itens</string>
+    <string name="cheat_sword">Melhor espada e escudo</string>
+    <string name="cheat_stats">Corações, magia e carteira no máximo</string>
+    <string name="cheat_songs">Todas as músicas</string>
+    <string name="cheat_triforce">Todos os fragmentos da Triforce</string>
+    <string name="cheat_dungeon">Mapa, bússola e chave do chefe (desta dungeon)</string>
+    <string name="cheat_key">Uma chave pequena (desta dungeon)</string>
+    <string name="cheat_story_hint">Progresso da história: pode mudar ou quebrar eventos da história</string>
+    <string name="cheat_inf_health">Vida infinita</string>
+    <string name="cheat_inf_magic">Magia infinita</string>
+    <string name="cheat_inf_ammo">Flechas e bombas infinitas</string>
+    <string name="opt_gyro_recalibrate">Recalibrar giroscópio</string>
+    <string name="opt_gyro_recalibrate_hint">Segure o celular como você joga e toque: essa posição vira a frente</string>
+    <string name="gyro_recalibrated">Giroscópio recalibrado</string>
+    <string name="opt_drawdone">Experimental: GX2DrawDone</string>
+    <string name="opt_drawdone_hint">Deixa o jogo preparar o próximo quadro enquanto o renderizador trabalha. Pode causar falhas visuais: só para testes.</string>
+    <string-array name="drawdone_modes">
+        <item>Esperar (padrão)</item>
+        <item>Um atrás</item>
+        <item>Sem espera</item>
+    </string-array>
+    <string name="opt_core_mode">Núcleos da CPU</string>
+    <string name="opt_core_mode_hint">Onde o jogo e o renderizador rodam. Núcleos de desempenho: menos calor para jogar estável. Núcleo principal: o mais rápido, e o mais quente.</string>
+    <string-array name="core_modes">
+        <item>Automático</item>
+        <item>Núcleos de desempenho</item>
+        <item>Núcleo principal (renderizador)</item>
+        <item>Núcleo principal (jogo)</item>
+    </string-array>
+    <string name="opt_resolution">Resolução de renderização</string>
+    <string name="opt_framegen">Geração de quadros</string>
+    <string name="opt_aspect">Proporção</string>
+    <string name="opt_render_aspect">Widescreen</string>
+    <string name="opt_render_aspect_hint">Formato da tela: o jogo renderiza na proporção da sua tela e mostra mais dos lados; o HUD mantém as proporções nas bordas da tela</string>
+    <string-array name="render_aspect_modes">
+        <item>Original 16:9</item>
+        <item>Formato da tela</item>
+    </string-array>
+    <string name="opt_layout">Layout da tela</string>
+    <string name="opt_ao">Oclusão de ambiente</string>
+    <string name="opt_ao_hires">Profundidade da oclusão em tamanho cheio</string>
+    <string name="opt_aniso">Filtragem anisotrópica 16×</string>
+    <string name="opt_perf">Painel de desempenho</string>
+    <string name="opt_perf_hint">FPS, carga e temperaturas</string>
+    <string name="opt_fg_choose_dll">Selecionar Lossless.dll</string>
+    <string name="opt_fg_multiplier">Multiplicador</string>
+    <string name="opt_fg_multiplier_hint">Quadros mostrados por quadro do jogo</string>
+    <string name="opt_fg_network">Rede</string>
+    <string name="opt_fg_flow">Escala do fluxo</string>
+    <string name="opt_fg_flow_hint">Resolução da estimativa de movimento: menor é mais rápido</string>
+    <string name="opt_fg_ui">Detecção de interface</string>
+    <string name="opt_fg_ui_hint">Mantém menus e textos nítidos</string>
+    <string name="opt_fg_replace_dll">Selecionar Lossless.dll</string>
+    <string name="opt_fg_remove_dll">Remover Lossless.dll</string>
+    <string name="opt_fg_remove_confirm">Remover o Lossless.dll do app? A geração de quadros fica desligada até você escolhê-lo de novo.</string>
+    <string name="opt_perf_move">Mover o painel</string>
+    <string name="opt_perf_move_hint">Fecha o menu: arraste o painel com o dedo e toque em outro lugar para terminar</string>
+    <string name="opt_perf_reset">Restaurar a posição dele</string>
+    <string name="opt_capture">Capturar um quadro</string>
+    <string name="opt_capture_hint">Para depuração: gravado na pasta do app</string>
+    <string name="opt_mod_direct_camera">Câmera direta no analógico direito</string>
+    <string name="opt_mod_direct_camera_hint">Sem suavização: a câmera segue o analógico na hora</string>
+    <string name="opt_mod_camera_speed">Velocidade da câmera direta</string>
+    <string name="opt_mod_first_person">Primeira pessoa no R3</string>
+    <string name="opt_mod_climb">Escalar qualquer parede</string>
+    <string name="opt_mod_climb_hint">Com uma roda de fôlego; B ou A solta</string>
+    <string name="opt_mod_quick_doors">Portas rápidas</string>
+    <string name="opt_mod_fast_scenes">Troca de cenário rápida</string>
+    <string name="opt_mod_speed_hint">4× mais rápido</string>
+    <string name="opt_mod_run">Corrida mais rápida</string>
+    <string name="opt_mod_run_hint">Link anda mais enquanto corre; pulos e rolamentos continuam iguais</string>
+    <string name="opt_mod_swim">Nado mais rápido</string>
+    <string name="opt_mod_swim_hint">O mesmo enquanto Link nada</string>
+    <string name="opt_mod_run_off">Desligado</string>
+    <string name="opt_mod_run_when">Vale</string>
+    <string name="opt_mod_run_always">Sempre</string>
+    <string name="opt_mod_run_with_l3">Com L3</string>
+    <string name="opt_mod_run_l3">L3</string>
+    <string name="opt_mod_run_l3_switch">Apertar: liga / desliga</string>
+    <string name="opt_mod_run_l3_hold">Segurar</string>
+    <string name="opt_onscreen">Controles de toque</string>
+    <string name="opt_onscreen_size">Tamanho dos controles de toque</string>
+    <string name="opt_controller">Os controles agem como</string>
+    <string name="opt_states">Save states</string>
+    <string name="opt_backup">Importar / exportar saves</string>
+    <string name="opt_game">Jogo</string>
+    <string name="opt_language">Idioma do jogo</string>
+    <string name="opt_language_hint">Os idiomas da sua cópia do jogo; vale após reiniciar</string>
+    <string name="language_restart">O jogo usa o novo idioma depois de reiniciar.</string>
+    <string name="opt_motion">Controles de movimento</string>
+    <string name="opt_motion_hint">Mire inclinando o aparelho, ou com um controle que tenha sensores de movimento</string>
+    <string name="opt_rumble">Vibração</string>
+    <string name="opt_rumble_hint">No controle, ou neste aparelho ao jogar pelo toque</string>
+    <string name="opt_buttons">Botões do controle</string>
+    <string name="opt_buttons_hint">Qual botão do controle aperta qual botão do Wii U</string>
+    <string name="opt_buttons_default">Padrão</string>
+    <string name="opt_buttons_custom">Personalizado</string>
+    <string name="opt_buttons_note">Escolha um botão do Wii U e aperte o botão do controle para ele. Um botão que já está em uso troca de lugar, então cada botão do Wii U fica com um. Home / Guide e segurar Select sempre abrem o menu, e o menu continua usando os botões pela posição.</string>
+    <string name="opt_buttons_press">Aperte o botão do controle para %1$s (agora: %2$s).\n\nHome / Guide ou Cancelar mantêm como está.</string>
+    <string name="opt_buttons_reset">Restaurar o padrão</string>
+    <string-array name="wiiu_buttons">
+        <item>A</item>
+        <item>B</item>
+        <item>X</item>
+        <item>Y</item>
+        <item>L</item>
+        <item>R</item>
+        <item>ZL</item>
+        <item>ZR</item>
+        <item>− (menos)</item>
+        <item>+ (mais)</item>
+        <item>Clique do analógico esquerdo</item>
+        <item>Clique do analógico direito</item>
+        <item>D-pad cima</item>
+        <item>D-pad baixo</item>
+        <item>D-pad esquerda</item>
+        <item>D-pad direita</item>
+    </string-array>
+    <string name="opt_drc_display">Tela do GamePad</string>
+    <string name="opt_drc_display_hint">Uma segunda tela foi encontrada (por exemplo a tela de baixo de um aparelho com duas telas)</string>
+    <string name="drc_second_display">Segunda tela</string>
+    <string name="drc_in_layout">No layout da tela</string>
+    <string name="opt_gpu_driver">Driver da GPU</string>
+    <string name="opt_gpu_driver_hint">O do sistema, ou um pacote de driver instalado</string>
+    <string name="gpu_driver_about">Em GPUs Adreno o jogo pode rodar com outro driver Vulkan além do do sistema, por exemplo um Mesa Turnip ou um driver Qualcomm mais novo. Use pacotes de driver no formato AdrenoTools (um .zip com meta.json e o driver), como outros emuladores usam. Um driver novo vale após reiniciar. Se o jogo não iniciar com ele, o próximo início volta para o driver do sistema.</string>
+    <string name="gpu_driver_running">Rodando agora: %1$s</string>
+    <string name="gpu_driver_fell_back">%1$s não pôde ser carregado, então o driver do sistema está rodando. O próximo início tenta ele de novo.</string>
+    <string name="gpu_driver_system">Driver do sistema</string>
+    <string name="gpu_driver_system_hint">O driver que veio com o aparelho</string>
+    <string name="gpu_driver_install">Instalar pacote de driver…</string>
+    <string name="gpu_driver_install_hint">Um .zip com meta.json e o driver</string>
+    <string name="gpu_driver_installing">Instalando o pacote de driver…</string>
+    <string name="gpu_driver_install_failed">O pacote de driver não pôde ser instalado: %1$s</string>
+    <string name="gpu_driver_not_package">isto não é um pacote de driver (um .zip com meta.json e o arquivo .so do driver)</string>
+    <string name="gpu_driver_installed">%1$s está instalado. Usar agora? O jogo reinicia.</string>
+    <string name="gpu_driver_use_now">Usar e reiniciar</string>
+    <string name="gpu_driver_later">Depois</string>
+    <string name="gpu_driver_use">Usar</string>
+    <string name="gpu_driver_remove">Remover</string>
+    <string name="gpu_driver_switch">Trocar para %1$s? O jogo reinicia; o primeiro início com outro driver compila os pipelines de novo e demora mais.</string>
+    <string name="gpu_driver_remove_active">Este driver está em uso. Removê-lo e reiniciar com o driver do sistema?</string>
+    <string name="gpu_driver_failed">O jogo não iniciou com o driver da GPU %1$s, então ele roda no driver do sistema de novo. Você pode escolher o driver de novo em Gráficos › Driver da GPU.</string>
+    <string name="opt_shaders">Apagar cache de shaders</string>
+    <string name="opt_shaders_hint">Reinicia o jogo como no primeiro início</string>
+    <string name="opt_about">Sobre</string>
+    <string name="opt_quit">Sair</string>
+    <string name="menu_capture">Capturar quadro (depuração)</string>
+    <string name="menu_clear_shaders">Apagar cache de shaders…</string>
+    <string name="clear_shaders_text">O jogo reinicia sem o cache de shaders, como no primeiro início: os shaders são compilados de novo conforme as cenas aparecem, então a primeira visita a cada cena carrega mais devagar e pode engasgar. Saves, save states e configurações ficam. (O progresso não salvo é perdido.)</string>
+    <string name="clear_shaders_restart">Apagar e reiniciar</string>
+    <string name="menu_quit">Sair</string>
+    <string name="on">ligado</string>
+    <string name="off">desligado</string>
+    <string name="layout_title">Layout da tela</string>
+    <string name="ao_title">Oclusão de ambiente</string>
+    <string name="text_title">Digite o texto</string>
+    <string name="text_message">Até %1$d caracteres.</string>
+
+    <string-array name="layouts">
+        <item>TV com o GamePad no canto</item>
+        <item>TV e GamePad lado a lado</item>
+        <item>Só a TV</item>
+        <item>GamePad com a TV no canto</item>
+        <item>Híbrido: TV, GamePad em tela cheia nos menus</item>
+    </string-array>
+    <string-array name="ao_modes">
+        <item>Original (como no Wii U)</item>
+        <item>Correção central</item>
+        <item>Correção central + ruído</item>
+        <item>Desligada</item>
+    </string-array>
+</resources>

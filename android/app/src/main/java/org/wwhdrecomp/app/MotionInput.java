@@ -51,12 +51,14 @@ final class MotionInput implements SensorEventListener {
         if (g == null || a == null) return;
         haveAcc = false;
         lastGyroNs = 0;
-        if ((activity.getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0)
-            android.util.Log.d("wwhd", "motion from " + (fromController ? c.getName() : "this device") + ": " + g.getName());
+        android.util.Log.i("wwhd", "motion from " + (fromController ? c.getName() : "this device") + ": " + g.getName());
         sensors.registerListener(this, a, SensorManager.SENSOR_DELAY_GAME, handler);
         sensors.registerListener(this, g, SensorManager.SENSOR_DELAY_GAME, handler);
         running = true;
     }
+
+    /** where the motion comes from now: the controller's name, "" for this device, null if off */
+    String source() { return !running ? null : fromController && controller != null ? controller.getName() : ""; }
 
     /** the sensors in use are a controller's */
     boolean fromController() { return running && fromController; }
@@ -68,14 +70,36 @@ final class MotionInput implements SensorEventListener {
         Native.motionReset();
     }
 
-    static boolean hasMotion(InputDevice d) {
-        SensorManager m = controllerSensors(d);
+    static boolean hasMotion(InputDevice d) { return hasGyro(controllerSensors(d)); }
+
+    // A controller's motion sensors: on the controller's own input device, or (the kernel's
+    // hid-playstation, hid-sony and hid-nintendo drivers) on a separate "... Motion Sensors" device
+    // of the same controller, which Android doesn't always merge into the gamepad.
+    private static SensorManager controllerSensors(InputDevice d) {
+        if (d == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return null;
+        SensorManager own = d.getSensorManager();
+        if (hasGyro(own)) return own;
+        InputDevice best = null;
+        for (int id : InputDevice.getDeviceIds()) {
+            InputDevice o = InputDevice.getDevice(id);
+            if (o == null || o.getId() == d.getId() || o.isVirtual()) continue;
+            if (o.getVendorId() != d.getVendorId() || o.getProductId() != d.getProductId()) continue;
+            if (!hasGyro(o.getSensorManager())) continue;
+            // the controller's own sibling: its name starts like the controller's (two of the same
+            // model connected: prefer the one whose name matches best)
+            if (best == null || commonPrefix(o.getName(), d.getName()) > commonPrefix(best.getName(), d.getName())) best = o;
+        }
+        return best != null ? best.getSensorManager() : own;
+    }
+
+    private static boolean hasGyro(SensorManager m) {
         return m != null && m.getDefaultSensor(Sensor.TYPE_GYROSCOPE) != null && m.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) != null;
     }
 
-    private static SensorManager controllerSensors(InputDevice d) {
-        if (d == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return null;
-        return d.getSensorManager();
+    private static int commonPrefix(String a, String b) {
+        int n = 0;
+        while (n < a.length() && n < b.length() && a.charAt(n) == b.charAt(n)) n++;
+        return n;
     }
 
     @Override

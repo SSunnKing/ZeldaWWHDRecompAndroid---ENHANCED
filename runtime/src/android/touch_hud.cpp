@@ -11,6 +11,7 @@
 
 #include <cstring>
 
+#include "../aspect.h"
 #include "../release.h"
 #include "../runtime.h"
 
@@ -84,10 +85,11 @@ bool has(uint32_t s, uint8_t id) {
 
 void state(int32_t out[kSize]) {
     memset(out, 0, sizeof(int32_t) * kSize);
+    if (aspect::skippable_scene()) out[0] |= kCutscene;  // also in the prologue, before the save data is real
     uint32_t s = save_address();
     if (!s) return;  // not in a game yet: unknown, the controls show everything
     uint8_t sword = ld8(s + kSelectEquip), shield = ld8(s + kSelectEquip + 1);
-    int32_t flags = kKnown;
+    int32_t flags = kKnown | (out[0] & kCutscene);
     if (sword != kNone) flags |= kHasSword;
     if (shield != kNone) flags |= kHasShield;
     if (has(s, 0x22)) flags |= kHasBaton;
